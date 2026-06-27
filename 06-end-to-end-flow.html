@@ -400,7 +400,7 @@
     align-items: center;
     padding: 12px 16px;
     background: var(--bg);
-    border-bottom: 1.5px solid var(--border);
+    border-bottom: 1px solid var(--border);
     gap: 12px;
     flex-wrap: wrap;
   }
@@ -425,12 +425,78 @@
     font-weight: 500;
     cursor: pointer;
     transition: all 0.15s;
+    white-space: nowrap;
   }
 
   .btn-load:hover { background: #3B3329; }
   .btn-load:disabled { opacity: 0.45; cursor: not-allowed; }
 
-  .picker-list { padding: 8px 0; max-height: 280px; overflow-y: auto; }
+  /* ── SEGMENTED CONTROL ── */
+  .picker-segments {
+    display: flex;
+    border-bottom: 1.5px solid var(--border);
+    background: var(--bg);
+  }
+
+  .seg-btn {
+    flex: 1;
+    padding: 9px 12px;
+    border: none;
+    background: none;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border-right: 1px solid var(--border);
+    transition: background 0.12s, color 0.12s;
+    position: relative;
+  }
+
+  .seg-btn:last-child { border-right: none; }
+  .seg-btn:hover:not(.seg-active) { background: var(--bg-card); color: var(--ink); }
+
+  .seg-btn.seg-active {
+    background: var(--bg-card);
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .seg-btn.seg-active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--ink);
+  }
+
+  .seg-btn.seg-active.seg-required::after  { background: var(--green); }
+  .seg-btn.seg-active.seg-optional::after  { background: var(--amber); }
+  .seg-btn.seg-active.seg-not-needed::after { background: #94A3B8; }
+
+  .seg-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: var(--border);
+    color: var(--ink-muted);
+    transition: background 0.12s, color 0.12s;
+  }
+
+  .seg-btn.seg-active .seg-count { background: var(--ink); color: #fff; }
+  .seg-btn.seg-active.seg-required .seg-count  { background: var(--green); }
+  .seg-btn.seg-active.seg-optional .seg-count  { background: var(--amber); }
+  .seg-btn.seg-active.seg-not-needed .seg-count { background: #94A3B8; }
+
+  .picker-list { padding: 8px 0; max-height: 260px; overflow-y: auto; }
 
   .picker-group { margin-bottom: 4px; }
 
@@ -449,7 +515,6 @@
     align-items: center;
     gap: 10px;
     padding: 7px 16px;
-    cursor: pointer;
     transition: background 0.1s;
   }
 
@@ -1148,6 +1213,17 @@
             <span class="picker-header-label" id="picker-label">Spec files found</span>
             <button class="btn-load" id="load-selected-btn" onclick="loadSelectedFiles()">Load selected</button>
           </div>
+          <div class="picker-segments" id="picker-segments">
+            <button class="seg-btn seg-required" id="seg-required" onclick="filterPicker('required')">
+              Required <span class="seg-count" id="count-required">0</span>
+            </button>
+            <button class="seg-btn seg-optional" id="seg-optional" onclick="filterPicker('optional')">
+              Optional <span class="seg-count" id="count-optional">0</span>
+            </button>
+            <button class="seg-btn seg-not-needed" id="seg-not-needed" onclick="filterPicker('not-needed')">
+              Not needed <span class="seg-count" id="count-not-needed">0</span>
+            </button>
+          </div>
           <div class="picker-list" id="picker-list"></div>
         </div>
       </div>
@@ -1810,8 +1886,9 @@
     return specFiles;
   }
 
+  let activeTier = 'required';
+
   function showFilePicker(files) {
-    // Sort: required first, optional second, not-needed last
     const tierOrder = { required: 0, optional: 1, 'not-needed': 2 };
     files.sort((a, b) => {
       const ta = tierOrder[getRecommendation(a.name).tier];
@@ -1819,43 +1896,52 @@
       return ta !== tb ? ta - tb : a.name.localeCompare(b.name);
     });
 
+    // tally counts
+    const counts = { required: 0, optional: 0, 'not-needed': 0 };
+    files.forEach(f => counts[getRecommendation(f.name).tier]++);
+    document.getElementById('count-required').textContent   = counts['required'];
+    document.getElementById('count-optional').textContent   = counts['optional'];
+    document.getElementById('count-not-needed').textContent = counts['not-needed'];
+
+    const total = files.length;
+    const rec   = counts['required'];
+    document.getElementById('picker-label').textContent =
+      `${total} file${total !== 1 ? 's' : ''} found — ${rec} recommended by skills`;
+
     const groups = {};
     for (const f of files) {
       const dir = f.path.includes('/') ? f.path.substring(0, f.path.lastIndexOf('/')) : '(root)';
       (groups[dir] = groups[dir] || []).push(f);
     }
 
-    const list = document.getElementById('picker-list');
-    list.innerHTML = '';
-
-    const requiredCount = files.filter(f => getRecommendation(f.name).tier === 'required').length;
-    document.getElementById('picker-label').textContent =
-      `${files.length} files found — ${requiredCount} recommended by skills`;
-
     const tierLabels  = { required: 'Required', optional: 'Optional', 'not-needed': 'Not needed' };
     const tierClasses = { required: 'tier-required', optional: 'tier-optional', 'not-needed': 'tier-not-needed' };
+
+    const list = document.getElementById('picker-list');
+    list.innerHTML = '';
 
     for (const [dir, items] of Object.entries(groups)) {
       const group = document.createElement('div');
       group.className = 'picker-group';
-      group.innerHTML = `<div class="picker-dir">${dir}/</div>`;
+      const dirEl = document.createElement('div');
+      dirEl.className = 'picker-dir';
+      dirEl.textContent = dir + '/';
+      group.appendChild(dirEl);
 
       for (const item of items) {
-        const rec = getRecommendation(item.name);
-        const kb  = Math.round(item.size / 1024);
-        const isRequired = rec.tier === 'required';
+        const rec  = getRecommendation(item.name);
+        const kb   = Math.round(item.size / 1024);
 
         const row = document.createElement('div');
         row.className = 'picker-row';
+        row.dataset.tier = rec.tier;
 
-        // checkbox (label wraps just the checkbox + filename, not the whole row,
-        // so clicking the ? button doesn't toggle the checkbox)
         const chkLabel = document.createElement('label');
-        chkLabel.style.cssText = 'display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;';
+        chkLabel.style.cssText = 'display:flex;align-items:center;gap:10px;flex:1;cursor:pointer;min-width:0;';
         chkLabel.innerHTML = `
           <input type="checkbox" class="picker-check"
             value="${item.download_url}" data-name="${item.name}"
-            ${isRequired ? 'checked' : ''}>
+            ${rec.tier === 'required' ? 'checked' : ''}>
           <span class="picker-fname">${item.name}</span>`;
 
         const right = document.createElement('div');
@@ -1863,16 +1949,43 @@
         right.innerHTML = `
           <span class="tier-badge ${tierClasses[rec.tier]}">${tierLabels[rec.tier]}</span>
           <span class="picker-size">${kb} KB</span>
-          <button class="picker-why-btn" title="Why this tier?" onclick="openWhyModal('${item.name}')">?</button>`;
+          <button class="picker-why-btn" title="Why this tier?"
+            onclick="openWhyModal('${item.name}')">?</button>`;
 
         row.appendChild(chkLabel);
         row.appendChild(right);
         group.appendChild(row);
       }
+
       list.appendChild(group);
     }
 
     document.getElementById('spec-picker').style.display = 'block';
+    filterPicker('required'); // land on Required by default
+  }
+
+  function filterPicker(tier) {
+    activeTier = tier;
+
+    // update segment active states
+    ['required', 'optional', 'not-needed'].forEach(t => {
+      const btn = document.getElementById('seg-' + t);
+      btn.classList.toggle('seg-active', t === tier);
+    });
+
+    // show/hide rows; track which groups have visible rows
+    const groups = document.querySelectorAll('#picker-list .picker-group');
+    groups.forEach(group => {
+      const rows = group.querySelectorAll('.picker-row');
+      let anyVisible = false;
+      rows.forEach(row => {
+        const visible = row.dataset.tier === tier;
+        row.style.display = visible ? 'flex' : 'none';
+        if (visible) anyVisible = true;
+      });
+      // hide the whole group (including dir header) if nothing visible
+      group.style.display = anyVisible ? 'block' : 'none';
+    });
   }
 
   async function loadSelectedFiles() {
