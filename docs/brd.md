@@ -4,7 +4,7 @@
 **Version:** 1.0  
 **Date:** 2026-06-27  
 **Status:** Draft  
-**References:** [Functional Specification](fsd.md) · [Handoff Spec](../handoff-spec.md)
+**References:** [Functional Specification](fsd.md) · [Architecture](architecture.md) · [Design Doc](superpowers/specs/2026-06-27-martech-integration-builder-design.md)
 
 ---
 

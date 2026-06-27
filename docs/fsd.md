@@ -4,7 +4,7 @@
 **Version:** 1.1  
 **Date:** 2026-06-27  
 **Status:** Draft — pending review  
-**References:** [Business Requirements Document](brd.md) · [Handoff Spec](../handoff-spec.md)
+**References:** [Business Requirements Document](brd.md) · [Architecture](architecture.md) · [Design Doc](superpowers/specs/2026-06-27-martech-integration-builder-design.md)
 
 ---
 
