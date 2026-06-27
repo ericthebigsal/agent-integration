@@ -385,6 +385,98 @@
     color: var(--ink-faint);
   }
 
+  /* ── FILE PICKER ── */
+  .spec-picker {
+    margin-top: 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-card);
+  }
+
+  .picker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--bg);
+    border-bottom: 1.5px solid var(--border);
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .picker-header-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+
+  .btn-load {
+    padding: 7px 16px;
+    border-radius: 5px;
+    border: 1.5px solid var(--ink);
+    background: var(--ink);
+    color: #fff;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .btn-load:hover { background: #3B3329; }
+  .btn-load:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .picker-list { padding: 8px 0; max-height: 280px; overflow-y: auto; }
+
+  .picker-group { margin-bottom: 4px; }
+
+  .picker-dir {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--ink-faint);
+    padding: 8px 16px 4px;
+    text-transform: uppercase;
+  }
+
+  .picker-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 16px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+
+  .picker-row:hover { background: var(--bg); }
+
+  .picker-check {
+    width: 15px;
+    height: 15px;
+    accent-color: var(--ink);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .picker-fname {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink);
+    flex: 1;
+  }
+
+  .picker-size {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-faint);
+    flex-shrink: 0;
+  }
+
   /* ── MATCH TABLE ── */
   .match-section { margin-bottom: 24px; }
 
@@ -888,6 +980,15 @@
             <span class="url-example-text">https://api.example.com/$discovery</span>
           </div>
         </div>
+
+        <!-- FILE PICKER (shown after GitHub repo discovery) -->
+        <div class="spec-picker" id="spec-picker" style="display:none">
+          <div class="picker-header">
+            <span class="picker-header-label" id="picker-label">Spec files found</span>
+            <button class="btn-load" id="load-selected-btn" onclick="loadSelectedFiles()">Load selected</button>
+          </div>
+          <div class="picker-list" id="picker-list"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1237,71 +1338,203 @@
     status.style.display = 'none';
   }
 
+  const GITHUB_REPO_RE = /^https?:\/\/github\.com\/([^\/\?#]+)\/([^\/\?#]+)\/?(?:[?#].*)?$/;
+
+  function setFetchStatus(type, text) {
+    const el = document.getElementById('fetch-status');
+    el.className = 'fetch-status ' + type;
+    el.textContent = text;
+    el.style.display = 'block';
+  }
+
   async function fetchSpec() {
     const url = document.getElementById('spec-url').value.trim();
-    const status = document.getElementById('fetch-status');
     const btn = document.getElementById('fetch-btn');
+    if (!url) { setFetchStatus('error', 'Enter a URL first.'); return; }
 
-    if (!url) {
-      status.className = 'fetch-status error';
-      status.textContent = 'Paste a URL first.';
-      status.style.display = 'block';
-      return;
+    document.getElementById('spec-picker').style.display = 'none';
+    btn.disabled = true;
+
+    const match = url.match(GITHUB_REPO_RE);
+    try {
+      if (match) {
+        btn.textContent = 'Scanning…';
+        await discoverGitHubRepo(match[1], match[2]);
+      } else {
+        btn.textContent = 'Fetching…';
+        await directFetch(url);
+      }
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Fetch';
+    }
+  }
+
+  async function discoverGitHubRepo(owner, repo) {
+    setFetchStatus('loading', `Scanning ${owner}/${repo} for spec files…`);
+    try {
+      const files = await findSpecFiles(owner, repo);
+      if (files.length === 0) {
+        setFetchStatus('error', 'No OpenAPI or Postman spec files found in this repository.');
+        return;
+      }
+      setFetchStatus('success', `Found ${files.length} spec file${files.length !== 1 ? 's' : ''} — select which to load:`);
+      showFilePicker(files);
+    } catch (err) {
+      const msg = err.message.includes('403')
+        ? 'GitHub API rate limit reached. Wait a minute and try again, or paste a raw file URL directly.'
+        : 'Could not scan repository: ' + err.message;
+      setFetchStatus('error', msg);
+    }
+  }
+
+  async function findSpecFiles(owner, repo) {
+    const base = `https://api.github.com/repos/${owner}/${repo}/contents`;
+    const SPEC_DIRS  = new Set(['openapi','swagger','spec','specs','api','apis','stable','beta','categories','docs','schema','schemas']);
+    const SKIP_DIRS  = new Set(['node_modules','.git','test','tests','__pycache__','dist','build','.github','vendor','coverage','examples']);
+    const specFiles  = [];
+
+    async function scan(path, depth) {
+      if (depth > 4) return;
+      const res = await fetch(path ? `${base}/${path}` : base,
+        { headers: { Accept: 'application/vnd.github.v3+json' } });
+      if (!res.ok) throw new Error(res.status + ' ' + res.statusText);
+      const items = await res.json();
+      if (!Array.isArray(items)) return;
+
+      const dirs = [];
+      for (const item of items) {
+        if (item.type === 'file') {
+          const n = item.name.toLowerCase();
+          const p = item.path.toLowerCase();
+          const isSpec = (n.endsWith('.json') || n.endsWith('.yaml') || n.endsWith('.yml'));
+          const hasKeyword = ['openapi','swagger','spec','api','postman','collection'].some(k => n.includes(k) || p.includes(k));
+          if (isSpec && hasKeyword && item.size > 500 && item.size < 10_000_000)
+            specFiles.push(item);
+        } else if (item.type === 'dir') {
+          const n = item.name.toLowerCase();
+          if (!SKIP_DIRS.has(n) && (SPEC_DIRS.has(n) || depth < 2))
+            dirs.push(item);
+        }
+      }
+      // scan subdirs in parallel batches of 4
+      for (let i = 0; i < dirs.length; i += 4)
+        await Promise.all(dirs.slice(i, i + 4).map(d => scan(d.path, depth + 1)));
     }
 
-    // detect format label from URL
+    await scan('', 0);
+    return specFiles;
+  }
+
+  function showFilePicker(files) {
+    const groups = {};
+    for (const f of files) {
+      const dir = f.path.includes('/') ? f.path.substring(0, f.path.lastIndexOf('/')) : '(root)';
+      (groups[dir] = groups[dir] || []).push(f);
+    }
+
+    const list = document.getElementById('picker-list');
+    list.innerHTML = '';
+    document.getElementById('picker-label').textContent =
+      `${files.length} spec file${files.length !== 1 ? 's' : ''} found — select to load`;
+
+    for (const [dir, items] of Object.entries(groups)) {
+      const group = document.createElement('div');
+      group.className = 'picker-group';
+      group.innerHTML = `<div class="picker-dir">${dir}/</div>`;
+
+      for (const item of items) {
+        const kb = Math.round(item.size / 1024);
+        const label = document.createElement('label');
+        label.className = 'picker-row';
+        label.innerHTML = `
+          <input type="checkbox" class="picker-check"
+            value="${item.download_url}" data-name="${item.name}">
+          <span class="picker-fname">${item.name}</span>
+          <span class="picker-size">${kb} KB</span>`;
+        group.appendChild(label);
+      }
+      list.appendChild(group);
+    }
+
+    document.getElementById('spec-picker').style.display = 'block';
+  }
+
+  async function loadSelectedFiles() {
+    const checks = [...document.querySelectorAll('.picker-check:checked')];
+    if (!checks.length) { setFetchStatus('error', 'Select at least one file.'); return; }
+
+    const btn = document.getElementById('load-selected-btn');
+    btn.disabled = true;
+    btn.textContent = 'Loading…';
+
+    try {
+      const results = await Promise.all(checks.map(async c => {
+        const res = await fetch(c.value);
+        if (!res.ok) throw new Error('Failed to fetch ' + c.dataset.name);
+        return { name: c.dataset.name, text: await res.text() };
+      }));
+
+      const combined = results.map(r => {
+        let parsed, pathCount = 0, title = '', version = '';
+        try {
+          parsed = JSON.parse(r.text);
+          pathCount = parsed.paths ? Object.keys(parsed.paths).length : 0;
+          title   = parsed.info?.title   || '';
+          version = parsed.info?.version || '';
+        } catch (_) {}
+        const preview = parsed
+          ? JSON.stringify({ openapi: parsed.openapi, info: parsed.info, servers: parsed.servers }, null, 2)
+              + '\n\n// ... ' + pathCount + ' paths'
+          : r.text.slice(0, 400) + '\n// ...';
+        return `// ${r.name}${title ? ' · ' + title : ''}${version ? ' · ' + version : ''}${pathCount ? ' · ' + pathCount + ' paths' : ''}\n\n${preview}`;
+      }).join('\n\n' + '─'.repeat(60) + '\n\n');
+
+      document.getElementById('spec-picker').style.display = 'none';
+      setFetchStatus('success', `✓ Loaded: ${results.map(r => r.name).join(', ')}`);
+
+      setTimeout(() => {
+        setInputMode('paste');
+        document.querySelector('textarea.spec-input').value = combined;
+      }, 400);
+    } catch (err) {
+      setFetchStatus('error', '✗ ' + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Load selected';
+    }
+  }
+
+  async function directFetch(url) {
     const lower = url.toLowerCase();
     let fmt = 'OpenAPI JSON';
-    if (lower.includes('.yaml') || lower.includes('.yml'))       fmt = 'OpenAPI YAML';
+    if (lower.includes('.yaml') || lower.includes('.yml')) fmt = 'OpenAPI YAML';
     else if (lower.includes('postman') || lower.includes('collection')) fmt = 'Postman collection';
     else if (lower.includes('$discovery') || lower.includes('discovery')) fmt = '$discovery document';
 
-    btn.disabled = true;
-    btn.textContent = 'Fetching…';
-    status.className = 'fetch-status loading';
-    status.textContent = 'GET ' + url;
-    status.style.display = 'block';
-
+    setFetchStatus('loading', 'GET ' + url);
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
-
       const text = await res.text();
-      let parsed, pathCount = 0, title = 'Unknown API', version = '';
-
+      let parsed, pathCount = 0, title = '', version = '';
       try {
         parsed = JSON.parse(text);
         pathCount = parsed.paths ? Object.keys(parsed.paths).length : 0;
-        title    = parsed.info?.title   || title;
-        version  = parsed.info?.version || '';
-      } catch (_) {
-        // YAML or non-JSON — show raw excerpt
-      }
-
+        title   = parsed.info?.title   || '';
+        version = parsed.info?.version || '';
+      } catch (_) {}
       const preview = parsed
         ? JSON.stringify({ openapi: parsed.openapi, info: parsed.info, servers: parsed.servers }, null, 2)
             + '\n\n// ... ' + pathCount + ' paths — scope filter will select ~10'
         : text.slice(0, 600) + '\n\n// ... (truncated)';
-
-      status.className = 'fetch-status success';
-      status.textContent = '✓ ' + fmt + ' loaded'
-        + (title ? ' · ' + title : '')
-        + (version ? ' · revision ' + version : '')
-        + (pathCount ? ' · ' + pathCount + ' paths' : '');
-
+      setFetchStatus('success', `✓ ${fmt} loaded${title ? ' · ' + title : ''}${version ? ' · ' + version : ''}${pathCount ? ' · ' + pathCount + ' paths' : ''}`);
       setTimeout(() => {
         setInputMode('paste');
-        document.querySelector('textarea.spec-input').value =
-          '// Fetched from: ' + url + '\n\n' + preview;
-      }, 600);
-
+        document.querySelector('textarea.spec-input').value = '// Fetched from: ' + url + '\n\n' + preview;
+      }, 500);
     } catch (err) {
-      status.className = 'fetch-status error';
-      status.textContent = '✗ Fetch failed: ' + err.message
-        + '\nIf the URL requires auth, paste the spec directly instead.';
-    } finally {
-      btn.disabled = false;
-      btn.textContent = 'Fetch';
+      setFetchStatus('error', '✗ Fetch failed: ' + err.message + '\nIf the URL requires auth, paste the spec directly instead.');
     }
   }
 
