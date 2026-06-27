@@ -110,7 +110,91 @@ Captures everyone currently matching a segment's rules into a new static List. T
 
 ---
 
-## 4. MCP Generation Step
+## 4. Cross-Skill Interaction — Profile Attributes → Segment Membership
+
+### 4.1 The dependency
+
+The Manage Profiles and Manage Audiences skills are not independent. A profile's custom properties determine which segments it lands in. Setting a property during upsert and creating a segment rule that references that property creates a causal link: **profile data quality drives audience membership** — without any explicit add-member call.
+
+This is the core CDP value proposition made visible: what you put into a profile determines where it shows up.
+
+### 4.2 The scenario
+
+1. Create a segment with a rule over a profile property — e.g., `properties.vip_tier = "gold"`
+2. Upsert a profile with that property set in the `properties` object
+3. Klaviyo evaluates the profile against all matching segment rules — membership updates in close to real time (typically 10–60 seconds in practice)
+4. Read the segment to confirm the profile appears — no add-member call was made
+
+```json
+// Step 1 — segment rule
+POST /api/segments
+{
+  "data": {
+    "type": "segment",
+    "attributes": {
+      "name": "VIP Gold Members",
+      "definition": {
+        "condition_groups": [{
+          "conditions": [{
+            "type": "profile/property",
+            "field": "properties.vip_tier",
+            "operator": "equals",
+            "value": "gold"
+          }]
+        }]
+      }
+    }
+  }
+}
+
+// Step 2 — profile upsert with the matching attribute
+POST /api/profiles
+{
+  "data": {
+    "type": "profile",
+    "attributes": {
+      "email": "user@example.com",
+      "properties": { "vip_tier": "gold" }
+    }
+  }
+}
+
+// Step 3 — wait ~30s, then confirm
+GET /api/segments/{id}  →  1 member
+```
+
+### 4.3 Rule types and demo choice
+
+Segment rules can reference three things:
+
+| Rule type | What it uses | Demo suitability |
+|---|---|---|
+| **Profile properties** | Custom key-value pairs set during upsert | ✅ Best — tight feedback loop, no extra calls |
+| **Event history** | Requires separate `POST /api/events` calls | ⚠ More realistic, adds complexity |
+| **List membership** | "Is / is not in list X" | ✅ Possible, but less instructive for this demo beat |
+
+Profile properties is the right choice for the demo: one upsert, one wait, one confirmation.
+
+### 4.4 Implications for each skill
+
+**Addition to Manage Profiles skill:** A profile property upsert can silently change segment membership. This is a hidden side effect — no audience-management call is made, but audience composition changes. The skill should flag this when setting custom properties: "this write may affect segment membership for any rule referencing this field."
+
+**Addition to Manage Audiences skill:** A segment with zero members after creation is usually a data quality problem, not a configuration problem. The skill should prompt: "confirm that profiles with the required property values exist before treating empty membership as an error."
+
+### 4.5 Demo sequence
+
+This cross-skill sequence replaces the standalone segment creation in the Verification step (Section 7):
+
+1. `POST /api/segments` — create "VIP Gold Members" segment with `properties.vip_tier = "gold"` rule
+2. `POST /api/profiles` — upsert test profile with `properties.vip_tier = "gold"` set
+3. Wait ~30 seconds (surface this wait explicitly in the UI — it demonstrates real-time computation, not a bug)
+4. `GET /api/segments/{id}` — confirm 1 member
+
+This is a materially stronger payoff than isolated operations: it demonstrates causation between profile data and audience membership, which is the thing the tool is actually good at explaining.
+
+---
+
+## 5. MCP Generation Step
 
 ### 4.1 Input
 - HITL-reviewed endpoint list (the ~10 operations confirmed in Sections 2–3)
@@ -135,7 +219,7 @@ A runnable MCP server scoped to the Manage Profiles and Manage Audiences operati
 
 ---
 
-## 5. Klaviyo Domain Skill (MCP Companion)
+## 6. Klaviyo Domain Skill (MCP Companion)
 
 ### 5.1 Why the MCP server alone is not enough
 
@@ -207,7 +291,7 @@ The companion skill is loaded at session start when Claude is used to drive the 
 
 ---
 
-## 6. Verification / Payoff Step
+## 7. Verification / Payoff Step
 
 **Sequence (against a real Klaviyo free-tier account):**
 
@@ -227,7 +311,7 @@ The companion skill is loaded at session start when Claude is used to drive the 
 
 ---
 
-## 7. Non-Functional Requirements
+## 8. Non-Functional Requirements
 
 | Requirement | Spec |
 |---|---|
@@ -240,7 +324,7 @@ The companion skill is loaded at session start when Claude is used to drive the 
 
 ---
 
-## 8. Open Questions
+## 9. Open Questions
 
 These were flagged at end of prior session and are not yet resolved:
 
