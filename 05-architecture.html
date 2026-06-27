@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture — AI-Assisted Martech Integration Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:             #F8F4EE;
+    --bg-card:        #FFFFFF;
+    --ink:            #1C1917;
+    --ink-muted:      #78716C;
+    --ink-faint:      #A8A09A;
+    --border:         #E2D9C8;
+    --connector:      #C4B89A;
+
+    /* step accent: neutral */
+    --neutral-border: #94A3B8;
+    --neutral-num-bg: #F1F5F9;
+    --neutral-num:    #475569;
+
+    /* step accent: domain skill (steps 2–3) */
+    --skill-border:   #16A34A;
+    --skill-num-bg:   #DCFCE7;
+    --skill-num:      #15803D;
+    --skill-band-bg:  #F0FDF4;
+
+    /* step accent: companion (steps 4–5) */
+    --comp-border:    #3B82F6;
+    --comp-num-bg:    #DBEAFE;
+    --comp-num:       #1D4ED8;
+    --comp-band-bg:   #EFF6FF;
+
+    /* verification green */
+    --verify-bg:      #D1FAE5;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: 48px 24px 80px;
+  }
+
+  .page {
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    border-bottom: 1.5px solid var(--border);
+    padding-bottom: 28px;
+    margin-bottom: 52px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .header-left h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 10px;
+  }
+
+  .header-left h2 {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    line-height: 1.2;
+  }
+
+  .header-meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    text-align: right;
+    line-height: 1.8;
+  }
+
+  /* ── SECTION LABELS ── */
+  .section-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 20px;
+  }
+
+  /* ── PIPELINE ── */
+  .pipeline-section {
+    margin-bottom: 44px;
+  }
+
+  .pipeline {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .step-card {
+    flex: 1;
+    min-width: 148px;
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 18px;
+    position: relative;
+  }
+
+  .step-card.skill-scope {
+    border-color: var(--skill-border);
+    background: linear-gradient(180deg, var(--bg-card) 0%, #F8FFF8 100%);
+  }
+
+  .step-card.comp-scope {
+    border-color: var(--comp-border);
+    background: linear-gradient(180deg, var(--bg-card) 0%, #F8FBFF 100%);
+  }
+
+  .step-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    width: 26px;
+    height: 26px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 14px;
+    background: var(--neutral-num-bg);
+    color: var(--neutral-num);
+  }
+
+  .step-card.skill-scope .step-num {
+    background: var(--skill-num-bg);
+    color: var(--skill-num);
+  }
+
+  .step-card.comp-scope .step-num {
+    background: var(--comp-num-bg);
+    color: var(--comp-num);
+  }
+
+  .step-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 8px;
+    line-height: 1.3;
+  }
+
+  .step-desc {
+    font-size: 12px;
+    color: var(--ink-muted);
+    line-height: 1.55;
+  }
+
+  .step-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-faint);
+    margin-top: 14px;
+    word-break: break-all;
+  }
+
+  /* ── CONNECTORS ── */
+  .connector-wrap {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    width: 40px;
+    position: relative;
+  }
+
+  .connector-line {
+    width: 100%;
+    height: 2px;
+    background: var(--connector);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .connector-arrow {
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 7px solid var(--connector);
+    flex-shrink: 0;
+  }
+
+  /* animated data-packet particle */
+  .connector-line::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -12px;
+    width: 12px;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--skill-border);
+    animation: flow 2s linear infinite;
+  }
+
+  /* particle changes color when entering companion-scope zone */
+  .connector-wrap.to-comp .connector-line::after {
+    background: var(--comp-border);
+    animation-delay: 0.4s;
+  }
+
+  @keyframes flow {
+    0%   { left: -12px; opacity: 0; }
+    10%  { opacity: 1; }
+    85%  { opacity: 1; }
+    100% { left: calc(100% + 4px); opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .connector-line::after { animation: none; opacity: 0; }
+  }
+
+  /* ── SKILL LAYERS ── */
+  .layers-section {
+    margin-bottom: 44px;
+  }
+
+  .layer-band {
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin-bottom: 16px;
+    border: 1.5px solid;
+    position: relative;
+  }
+
+  .layer-band.domain {
+    background: var(--skill-band-bg);
+    border-color: var(--skill-border);
+  }
+
+  .layer-band.companion {
+    background: var(--comp-band-bg);
+    border-color: var(--comp-border);
+  }
+
+  .layer-band-header {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+
+  .layer-band-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .domain .layer-band-title { color: var(--skill-num); }
+  .companion .layer-band-title { color: var(--comp-num); }
+
+  .layer-scope-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--ink-muted);
+    background: rgba(0,0,0,0.05);
+  }
+
+  .layer-desc {
+    font-size: 13px;
+    color: var(--ink-muted);
+    margin-bottom: 18px;
+    max-width: 640px;
+    line-height: 1.6;
+  }
+
+  .layer-items {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .layer-item {
+    background: var(--bg-card);
+    border-radius: 6px;
+    padding: 14px 18px;
+    border: 1px solid;
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .domain .layer-item { border-color: rgba(22, 163, 74, 0.25); }
+  .companion .layer-item { border-color: rgba(59, 130, 246, 0.25); }
+
+  .layer-item-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 6px;
+  }
+
+  .layer-item-body {
+    font-size: 12px;
+    color: var(--ink-muted);
+    line-height: 1.55;
+  }
+
+  .layer-item-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-faint);
+    margin-top: 10px;
+  }
+
+  /* ── CONNECTOR ARROWS (band to pipeline) ── */
+  .scope-bridge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+
+  .scope-bridge-line {
+    flex: none;
+    width: 2px;
+    height: 24px;
+    border-left: 2px dashed;
+    margin-left: 12px;
+  }
+
+  .domain .scope-bridge-line { border-color: var(--skill-border); }
+  .companion .scope-bridge-line { border-color: var(--comp-border); }
+
+  .scope-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  .domain .scope-label {
+    color: var(--skill-num);
+    background: var(--skill-num-bg);
+  }
+
+  .companion .scope-label {
+    color: var(--comp-num);
+    background: var(--comp-num-bg);
+  }
+
+  /* ── OPEN QUESTIONS ── */
+  .questions-section {
+    margin-bottom: 44px;
+  }
+
+  .question-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .question-item {
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    padding: 14px 18px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+
+  .question-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-faint);
+    flex-shrink: 0;
+    padding-top: 1px;
+  }
+
+  .question-text {
+    font-size: 13px;
+    color: var(--ink-muted);
+    line-height: 1.55;
+  }
+
+  .question-text strong {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* ── LEGEND ── */
+  .legend {
+    border-top: 1.5px solid var(--border);
+    padding-top: 24px;
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .legend-swatch {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1.5px solid;
+    flex-shrink: 0;
+  }
+
+  .legend-swatch.neutral { background: var(--neutral-num-bg); border-color: var(--neutral-border); }
+  .legend-swatch.skill   { background: var(--skill-num-bg);   border-color: var(--skill-border); }
+  .legend-swatch.comp    { background: var(--comp-num-bg);     border-color: var(--comp-border); }
+
+  .legend-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-muted);
+  }
+
+  /* ── FOOTER ── */
+  .footer {
+    margin-top: 56px;
+    border-top: 1px solid var(--border);
+    padding-top: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .footer-left {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-faint);
+    line-height: 1.8;
+  }
+
+  .footer-right {
+    display: flex;
+    gap: 16px;
+  }
+
+  .doc-link {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-muted);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1px;
+  }
+
+  .doc-link:hover { color: var(--ink); border-color: var(--ink); }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 720px) {
+    .pipeline { flex-direction: column; }
+    .connector-wrap { width: auto; height: 32px; justify-content: center; }
+    .connector-line { width: 2px; height: 100%; }
+    .connector-arrow {
+      border-left: 5px solid transparent;
+      border-right: 5px solid transparent;
+      border-top: 7px solid var(--connector);
+      border-bottom: none;
+    }
+    .header { flex-direction: column; align-items: flex-start; }
+    .header-meta { text-align: left; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <h1>AI-Assisted Martech Integration Builder</h1>
+      <h2>System Architecture</h2>
+    </div>
+    <div class="header-meta">
+      v1.0 · 2026-06-27<br>
+      Platform: Klaviyo<br>
+      Scenarios: Manage Profiles · Manage Audiences
+    </div>
+  </header>
+
+  <!-- PIPELINE -->
+  <section class="pipeline-section">
+    <div class="section-label">Pipeline — data flow</div>
+    <div class="pipeline">
+
+      <!-- Step 1 -->
+      <div class="step-card">
+        <div class="step-num">01</div>
+        <div class="step-title">Spec Input</div>
+        <div class="step-desc">Structured API spec ingested — OpenAPI, Postman collection, or <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">$discovery</code> document. No prose-scraping fallback.</div>
+        <div class="step-tag">openapi.json<br>postman.json<br>$discovery</div>
+      </div>
+
+      <div class="connector-wrap">
+        <div class="connector-line"></div>
+        <div class="connector-arrow"></div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step-card skill-scope">
+        <div class="step-num">02</div>
+        <div class="step-title">Skill Match</div>
+        <div class="step-desc">Spec endpoints aligned against domain-skill priors. Identifies operations, multi-step sequences, and where common assumptions break.</div>
+        <div class="step-tag">Manage Profiles<br>Manage Audiences</div>
+      </div>
+
+      <div class="connector-wrap">
+        <div class="connector-line"></div>
+        <div class="connector-arrow"></div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step-card skill-scope">
+        <div class="step-num">03</div>
+        <div class="step-title">HITL Review</div>
+        <div class="step-desc">Confirmed endpoints displayed with skill-sourced warnings. Human reviews — not to correct guesses, but to acknowledge what will bite them in prod.</div>
+        <div class="step-tag">≥2 warnings<br>per scenario</div>
+      </div>
+
+      <div class="connector-wrap to-comp">
+        <div class="connector-line"></div>
+        <div class="connector-arrow"></div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="step-card comp-scope">
+        <div class="step-num">04</div>
+        <div class="step-title">MCP Generation</div>
+        <div class="step-desc">Enriched OpenAPI spec fed into <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">openapi-mcp</code>, scoped to ~10 endpoints. Behavioral facts travel inside tool descriptions.</div>
+        <div class="step-tag">ckanthony/<br>openapi-mcp</div>
+      </div>
+
+      <div class="connector-wrap to-comp">
+        <div class="connector-line"></div>
+        <div class="connector-arrow"></div>
+      </div>
+
+      <!-- Step 5 -->
+      <div class="step-card comp-scope">
+        <div class="step-num">05</div>
+        <div class="step-title">Verification</div>
+        <div class="step-desc">Live Klaviyo API call. Upsert profile → add to list → create segment → confirm in dashboard. Green per step.</div>
+        <div class="step-tag">real account<br>real data</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- SKILL LAYERS -->
+  <section class="layers-section">
+    <div class="section-label">Skill architecture — two-layer knowledge delivery</div>
+
+    <!-- Domain Skill Band -->
+    <div class="layer-band domain">
+      <div class="layer-band-header">
+        <span class="layer-band-title">Domain Skill Layer</span>
+        <span class="layer-scope-tag">informs steps 02 &amp; 03</span>
+      </div>
+      <p class="layer-desc">
+        Codified prior knowledge about how profile and audience management APIs behave across platforms.
+        Used during Skill Match and HITL Review to surface warnings the spec alone cannot tell you.
+      </p>
+      <div class="layer-items">
+        <div class="layer-item">
+          <div class="layer-item-title">Manage Profiles Skill</div>
+          <div class="layer-item-body">
+            Knows upsert is idempotent. Knows delete is always async in regulated contexts.
+            Knows "download all" means paginated cursor loop, never a bulk-export endpoint.
+            Flags rate-limit cliff on deletion and 401-post-revision-bump live issue.
+          </div>
+          <div class="layer-item-tag">3 operations · 4 warnings</div>
+        </div>
+        <div class="layer-item">
+          <div class="layer-item-title">Manage Audiences Skill</div>
+          <div class="layer-item-body">
+            Knows Lists are static (manual) and Segments are dynamic (rule-based).
+            Flags the two-endpoint list-add consent trap. Flags that segment membership
+            is computed — there is no add/remove-member endpoint by design.
+          </div>
+          <div class="layer-item-tag">4 list ops · 3 segment ops · 6 warnings</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Companion Skill Band -->
+    <div class="layer-band companion">
+      <div class="layer-band-header">
+        <span class="layer-band-title">Companion Skill Layer</span>
+        <span class="layer-scope-tag">informs steps 04 &amp; 05</span>
+      </div>
+      <p class="layer-desc">
+        Domain knowledge doesn't end at the review screen. Two artifacts carry it forward
+        into MCP generation and live verification, so the model using the MCP server
+        doesn't rediscover the same gotchas at call time.
+      </p>
+      <div class="layer-items">
+        <div class="layer-item">
+          <div class="layer-item-title">Enriched OpenAPI Spec</div>
+          <div class="layer-item-body">
+            Klaviyo's spec pre-processed before generation. Critical behavioral facts
+            injected into tool <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">description</code> fields on the 10 scoped operations —
+            async delete, consent semantics, pagination requirement, rate limits.
+          </div>
+          <div class="layer-item-tag">~10 operations enriched · fed to openapi-mcp</div>
+        </div>
+        <div class="layer-item">
+          <div class="layer-item-title">Companion Skill File</div>
+          <div class="layer-item-body">
+            Full domain knowledge in a Claude skill file, loaded at session start when
+            an LLM drives the MCP server. Covers all operations with per-tool guidance
+            and known live issues. Same facts as HITL review, surfaced at call time.
+          </div>
+          <div class="layer-item-tag">skills/klaviyo-api.md</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- OPEN QUESTIONS -->
+  <section class="questions-section">
+    <div class="section-label">Open questions — not yet resolved</div>
+    <div class="question-list">
+      <div class="question-item">
+        <div class="question-num">Q1</div>
+        <div class="question-text">
+          <strong>List add-member severity.</strong> Currently styled red/danger in the prototype — justified by the silent failure mode (successful 200, nobody added). Confirm or adjust after fresh-eyes review of <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">04-manage-profiles-and-audiences-klaviyo.html</code>.
+        </div>
+      </div>
+      <div class="question-item">
+        <div class="question-num">Q2</div>
+        <div class="question-text">
+          <strong>Segment-snapshot bridge card.</strong> Included in prototype, flagged as cuttable. In scope (demonstrates the List/Segment relationship) or cut (scope creep beyond the two named skills)?
+        </div>
+      </div>
+      <div class="question-item">
+        <div class="question-num">Q3</div>
+        <div class="question-text">
+          <strong>Footer gate behavior.</strong> Currently "zero data-quality flags" gates "ready to generate." Should it require explicit acknowledgment of the two highest-severity warnings — irreversible delete and the live 401 issue?
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <div class="legend-item">
+      <div class="legend-swatch neutral"></div>
+      <span class="legend-label">Neutral step (no skill influence)</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch skill"></div>
+      <span class="legend-label">Domain skill scope (steps 02–03)</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-swatch comp"></div>
+      <span class="legend-label">Companion skill scope (steps 04–05)</span>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-left">
+      AI-Assisted Martech Integration Builder · Architecture v1.0<br>
+      Platform: Klaviyo · Scenarios: Manage Profiles, Manage Audiences
+    </div>
+    <div class="footer-right">
+      <a class="doc-link" href="docs/brd.md">BRD →</a>
+      <a class="doc-link" href="docs/fsd.md">FSD →</a>
+      <a class="doc-link" href="handoff-spec.md">Handoff Spec →</a>
+    </div>
+  </footer>
+
+</div>
+</body>
+</html>
