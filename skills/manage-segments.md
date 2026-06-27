@@ -26,10 +26,13 @@ not an omission — it is the design.
       "definition": {
         "condition_groups": [{
           "conditions": [{
-            "type": "profile/property",
-            "field": "properties.vip_tier",
-            "operator": "equals",
-            "value": "gold"
+            "type": "profile-property",
+            "property": "properties['vip_tier']",
+            "filter": {
+              "type": "string",
+              "operator": "equals",
+              "value": "gold"
+            }
           }]
         }]
       }

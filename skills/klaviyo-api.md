@@ -10,11 +10,11 @@ It contains the behavioral knowledge the tool descriptions alone cannot convey.
 Every request requires two headers:
 
 ```
-Authorization: Klaviyo-API-Key {KLAVIYO_API_KEY}
+Authorization: Klaviyo-API-Key {KLAVIYO_PRIVATE_API_KEY}
 revision: 2024-10-15
 ```
 
-Never hardcode the key. Source it from the `KLAVIYO_API_KEY` environment variable.
+Never hardcode the key. Source it from the `KLAVIYO_PRIVATE_API_KEY` environment variable.
 
 ---
 
