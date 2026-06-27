@@ -588,6 +588,23 @@
     color: var(--ink-muted);
   }
 
+  .modal-description {
+    font-size: 14px;
+    color: var(--ink);
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+
+  .modal-reason-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 6px;
+  }
+
   .modal-reason {
     font-size: 13px;
     color: var(--ink-muted);
@@ -1423,6 +1440,8 @@
         <button class="modal-close" onclick="document.getElementById('why-modal').style.display='none'">✕</button>
       </div>
       <div class="modal-body">
+        <div class="modal-description" id="modal-description"></div>
+        <div class="modal-reason-label">Skill verdict</div>
         <div class="modal-reason" id="modal-reason"></div>
         <div class="modal-ops" id="modal-ops-wrap">
           <div class="modal-ops-label">Endpoints from this file used by skills</div>
@@ -1508,9 +1527,12 @@
   // ── SKILL RECOMMENDATIONS ──────────────────────────────────────
   // Keyed by filename stem (lowercase, no extension).
   // tier: 'required' | 'optional' | 'not-needed'
+  // description: what this file covers (shown first, always)
+  // reason: skill verdict explanation (shown second)
   const SKILL_RECOMMENDATIONS = {
     profiles: {
       tier: 'required',
+      description: 'Core profile management — create, update, and retrieve contact records. The central object in Klaviyo: every list membership and segment match is anchored to a profile.',
       reason: 'The Manage Profiles skill uses three operations from this file: upsert (POST /api/profiles), paginated download-all (GET /api/profiles), and profile creation as a prerequisite for list membership. Without this file the MCP server cannot cover any Manage Profiles operations.',
       ops: [
         'POST /api/profiles — upsert (idempotent, silent overwrite)',
@@ -1519,6 +1541,7 @@
     },
     data_privacy: {
       tier: 'required',
+      description: 'GDPR and CCPA compliance endpoints — submit profile deletion requests and track their status. These are the only endpoints in Klaviyo\'s API for removing a person\'s data.',
       reason: 'The Manage Profiles skill\'s delete operation lives here, not in profiles.json. Klaviyo routes profile deletion through the Data Privacy API — it is async, irreversible, and rate-limited at 60/min. This file also contains the endpoint with the highest gotcha density (known 401 post-revision-bump issue).',
       ops: [
         'POST /api/data-privacy-deletion-jobs — async irreversible delete',
@@ -1526,6 +1549,7 @@
     },
     lists: {
       tier: 'required',
+      description: 'Static audience management — create and manage manually-curated contact lists, add and remove members, and control marketing consent. Lists are the foundation of Klaviyo\'s segmentation and flow-triggering.',
       reason: 'The Manage Audiences skill (Lists) uses four operations from this file. The add-member operation alone has two valid paths with different consent semantics — surfacing that distinction is a primary demo beat.',
       ops: [
         'POST   /api/lists — create list',
@@ -1537,6 +1561,7 @@
     },
     segments: {
       tier: 'required',
+      description: 'Dynamic audience management — create rule-based segments that automatically update as profiles match or stop matching conditions. Segment membership is computed continuously, not set manually.',
       reason: 'The Manage Audiences skill (Segments) uses this file for create and read. The create endpoint has a hard 100/day daily cap and was dashboard-only until recently — both worth flagging. The "add/remove member" concept intentionally does not exist here.',
       ops: [
         'POST /api/segments — create (burst 1/s, 100/day cap)',
@@ -1544,26 +1569,121 @@
         'DELETE /api/segments/{id} — delete',
       ]
     },
-    // Combined specs — usable but noisier
-    'stable': {
+    stable: {
       tier: 'optional',
-      reason: 'The full combined stable spec contains every Klaviyo endpoint (~800+ paths). It works with the OpenAPI→MCP generator but scope filtering becomes critical — without it you\'d generate 800+ tools instead of ~10. Use individual category files for a cleaner demo.',
+      description: 'The complete Klaviyo stable API in a single file — every endpoint across all categories (~800+ paths). Useful if you want one source of truth rather than per-category files.',
+      reason: 'Works with the OpenAPI→MCP generator but scope filtering becomes critical — without it you\'d generate 800+ tools instead of ~10. Use individual category files for a cleaner, more focused demo.',
       ops: ['All endpoints — profiles, lists, segments, data-privacy, and ~20 other categories']
     },
-    'beta': {
+    beta: {
       tier: 'optional',
-      reason: 'The beta spec mirrors the stable structure but for pre-release endpoints. None of the Manage Profiles or Manage Audiences operations require beta — use stable category files instead.',
+      description: 'The complete Klaviyo beta API — pre-release endpoints that may change before reaching stable. Structure mirrors the stable spec.',
+      reason: 'None of the Manage Profiles or Manage Audiences operations require beta. Use stable category files instead.',
       ops: ['Beta-track equivalents of all stable endpoints']
     },
+    accounts: {
+      tier: 'not-needed',
+      description: 'Account configuration — retrieve account details such as timezone, currency, industry, and API key metadata. Read-only; no write operations.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. No operations from this file appear in either scenario.'
+    },
+    campaigns: {
+      tier: 'not-needed',
+      description: 'Campaign management — create, schedule, and send one-time email and SMS campaigns to lists or segments. Covers draft, send, clone, and reporting operations.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. Campaign sending is a separate concern from profile and audience management.'
+    },
+    catalogs: {
+      tier: 'not-needed',
+      description: 'Product catalog management — sync product items, categories, and variants into Klaviyo for use in recommendations, browse abandonment, and back-in-stock flows.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. Catalog data enriches personalization but is not part of profile or audience management.'
+    },
+    client: {
+      tier: 'not-needed',
+      description: 'Client-side tracking API — identify users and track events from browsers or mobile apps using a public API key. Designed for front-end use, not server-to-server integration.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. This is the public/browser-facing API; the demo uses the private server-side API.'
+    },
+    conversations: {
+      tier: 'not-needed',
+      description: 'Conversations inbox — manage two-way SMS and email conversations with customers, assign threads, and track response status.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. Conversations is a support/messaging channel, not a profile or audience operation.'
+    },
+    coupons: {
+      tier: 'not-needed',
+      description: 'Coupon code management — create coupon codes, assign them to profiles, and track redemption for use in campaigns and flows.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. Coupon logic is downstream of audience management, not part of it.'
+    },
+    custom_objects: {
+      tier: 'not-needed',
+      description: 'Custom objects — flexible schema-defined data storage beyond profiles and events. Useful for storing structured business data (orders, subscriptions, appointments) linked to profiles.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. Custom objects extend the data model but are not used in profile upsert, delete, or audience operations.'
+    },
+    events: {
+      tier: 'not-needed',
+      description: 'Event tracking — record custom behavioral events (purchases, page views, form submissions) linked to profiles. Events drive flow triggers and segment conditions.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. Event ingestion is a separate concern from managing profile records and static/dynamic audiences.'
+    },
+    flows: {
+      tier: 'not-needed',
+      description: 'Automation flows — create and manage triggered email and SMS sequences based on events, list joins, dates, or segment membership.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. Flows consume audiences as triggers but are not part of creating or managing them.'
+    },
+    forms: {
+      tier: 'not-needed',
+      description: 'Signup forms — create, configure, and embed web forms that capture subscribers and add them to lists with appropriate consent.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. Forms are a data-collection channel; the demo manages profiles and audiences directly via API.'
+    },
+    images: {
+      tier: 'not-needed',
+      description: 'Image library — upload, organize, and retrieve images for use in email templates and campaigns.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. Image management is a content asset concern unrelated to profile or audience data.'
+    },
+    metrics: {
+      tier: 'not-needed',
+      description: 'Metrics and analytics — query event metric definitions, volumes, and timeseries data for reporting and segmentation rule building.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. Metrics power analytics dashboards and segment conditions but are not part of profile or audience management.'
+    },
+    reporting: {
+      tier: 'not-needed',
+      description: 'Campaign and flow reporting — pull performance data including open rates, click rates, revenue attribution, and conversion metrics.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. Reporting is downstream of sending; the demo focuses on managing the audiences that get targeted.'
+    },
+    reviews: {
+      tier: 'not-needed',
+      description: 'Product reviews — collect, moderate, and display customer product reviews. Integrates with catalog items.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. Reviews are a content moderation feature unrelated to contact and audience management.'
+    },
+    tags: {
+      tier: 'not-needed',
+      description: 'Tags — apply organizational labels to lists, segments, campaigns, flows, and templates for filtering and grouping in the dashboard.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. Tags are a UI organization tool and do not affect profile data or audience membership.'
+    },
+    templates: {
+      tier: 'not-needed',
+      description: 'Email and SMS templates — create, edit, clone, and manage reusable message templates used by campaigns and flows.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. Templates are message content assets; the demo is concerned with who receives messages, not what they say.'
+    },
+    tracking_settings: {
+      tier: 'not-needed',
+      description: 'Tracking configuration — manage UTM parameter settings, open tracking, click tracking, and custom tracking domain configuration.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. Tracking settings affect how engagement is measured, not how profiles or audiences are managed.'
+    },
+    web_feeds: {
+      tier: 'not-needed',
+      description: 'Web feeds and personalization — dynamic content blocks that pull real-time data (product recommendations, recent articles) into emails based on profile attributes.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. Web feeds are a content personalization layer, not a contact or audience management operation.'
+    },
+    webhooks: {
+      tier: 'not-needed',
+      description: 'Webhook subscriptions — register endpoints to receive real-time event notifications from Klaviyo (profile updates, campaign sends, flow triggers, etc.).',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. Webhooks are an outbound notification mechanism; the demo uses the inbound REST API to push data to Klaviyo, not receive notifications from it.'
+    },
   };
-
-  const NOT_NEEDED_REASON = 'No endpoints from this file are referenced by the Manage Profiles or Manage Audiences skills. Including it would add noise to the MCP server scope filter without contributing any operations to the demo scenarios.';
 
   function getRecommendation(filename) {
     const stem = filename.toLowerCase().replace(/\.(json|yaml|yml)$/, '');
     return SKILL_RECOMMENDATIONS[stem] || {
       tier: 'not-needed',
-      reason: NOT_NEEDED_REASON,
+      description: 'API endpoints for this category.',
+      reason: 'Not referenced by the Manage Profiles or Manage Audiences skills. No operations from this file appear in either scenario.',
       ops: []
     };
   }
@@ -1573,11 +1693,12 @@
     document.getElementById('modal-filename').textContent = filename;
 
     const badge = document.getElementById('modal-tier-badge');
-    const tierLabels = { required: 'Required', optional: 'Optional', 'not-needed': 'Not needed' };
+    const tierLabels  = { required: 'Required', optional: 'Optional', 'not-needed': 'Not needed' };
     const tierClasses = { required: 'tier-required', optional: 'tier-optional', 'not-needed': 'tier-not-needed' };
     badge.textContent = tierLabels[rec.tier];
     badge.className = 'tier-badge ' + tierClasses[rec.tier];
 
+    document.getElementById('modal-description').textContent = rec.description || '';
     document.getElementById('modal-reason').textContent = rec.reason;
 
     const opsWrap = document.getElementById('modal-ops-wrap');
