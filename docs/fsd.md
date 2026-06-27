@@ -1,7 +1,7 @@
 # Functional Specification Document
 ## AI-Assisted Martech/Adtech Integration Builder
 
-**Version:** 1.0  
+**Version:** 1.1  
 **Date:** 2026-06-27  
 **Status:** Draft — pending review  
 **References:** [Business Requirements Document](brd.md) · [Handoff Spec](../handoff-spec.md)
@@ -22,6 +22,8 @@ flowchart LR
     style A fill:#f5f0e8,stroke:#8b7355
     style E fill:#e8f5e9,stroke:#2e7d32
 ```
+
+**Three integration scenarios:** Manage Profiles (Skill 1), Manage Audiences — Lists (Skill 2), Manage Segments (Skill 3). Skills 2 and 3 are intentionally separate: Lists have manually-curated, writable membership; Segments have computed, non-writable membership. Conflating them is one of the most common martech integration mistakes.
 
 **Auth:** All Klaviyo API calls use a private API key passed as `Authorization: Klaviyo-API-Key {key}`, sourced from environment variable — never hardcoded.
 
@@ -62,18 +64,18 @@ The review screen for this scenario shows confirmed endpoints (no inference, no 
 
 ---
 
-## 3. Scenario: Manage Audiences (Skill 2)
+## 3. Scenario: Manage Audiences — Lists (Skill 2)
 
 ### 3.1 What the skill knows
 
-The Manage Audiences skill encodes priors about audience management APIs:
+The Manage Audiences skill encodes priors about static, manually-curated audience management:
 
-- **Lists vs. Segments** is a near-universal distinction: static/manually-curated vs. dynamic/rule-based. Most platforms implement both. The failure mode is conflating them — especially trying to "add a member" to a dynamic segment.
+- **Lists** hold explicitly-managed membership. Someone is in a list because a human or a system put them there. Membership is writable.
 - **List membership add** is one of the highest-gotcha operations in martech — multiple consent paths often exist with different downstream behavior, and the API surface may not make the distinction obvious.
-- **Segment membership** is computed, not writable. There is no add/remove endpoint by design. To change who's in a segment, change the rule. This surprises developers who expect CRUD-style membership management.
-- **Rate limits on segment creation** are typically much tighter than on reads or list operations, because segments trigger compute jobs.
+- **Removing from a list** is not the same as unsubscribing. These are often confused. A profile removed from all lists may still be subscribed to marketing communications.
+- **Profile identity** is required to add a member. Adding by email alone is a common mistake — most platforms require a resolved profile ID, which means a prior upsert or lookup.
 
-### 3.2 Klaviyo endpoint mapping — Lists (static)
+### 3.2 Klaviyo endpoint mapping
 
 | Operation | Endpoint | Method | Spec-confirmed |
 |---|---|---|---|
@@ -82,43 +84,62 @@ The Manage Audiences skill encodes priors about audience management APIs:
 | Remove member | `/api/lists/{id}/relationships/profiles` | DELETE | ✅ |
 | Delete list | `/api/lists/{id}` | DELETE | ✅ |
 
-### 3.3 Klaviyo endpoint mapping — Segments (dynamic)
-
-| Operation | Endpoint | Method | Notes |
-|---|---|---|---|
-| Create segment | `/api/segments` | POST | ✅ |
-| Read segment | `/api/segments/{id}` | GET | ✅ |
-| Add/remove member | — | — | Not applicable by design |
-| Delete segment | `/api/segments/{id}` | DELETE | ✅ (spec-confirmed, lower research depth than other ops) |
-
-### 3.4 HITL review output — Manage Audiences
+### 3.3 HITL review output — Manage Audiences
 
 | Severity | Warning |
 |---|---|
 | 🔴 Critical | **Two add-member endpoints exist with different consent semantics.** `relationships/profiles` adds immediately but does not grant marketing consent. `subscribe` is consent-aware but if double opt-in is enabled (Klaviyo's default), it returns a successful empty response and adds no one until the contact confirms. Both calls look identical in success/failure shape — only the real-world outcome differs. |
 | 🔴 Critical | **Adding to a list requires a profile ID, not an email.** For a net-new contact, this is a 2-step sequence: resolve/create the profile first (get back an ID), then add by ID. The Bulk Profile Import API can do both in one call as an alternative. |
 | 🟡 Behavioral | **Removing from a list does not change subscription/consent status.** A profile removed from all lists can still be technically subscribed to marketing. Use the Unsubscribe endpoint if the goal is to stop marketing communications, not just list membership. |
-| 🟡 Behavioral | **Segment creation has a daily cap of 100/day** (burst 1/s, steady 15/min). A loop that creates segments will exhaust the daily quota fast, and the failure pattern won't look like a typical rate-limit error until most of the quota is gone. |
-| ℹ️ Historical | **Segment creation via API is relatively new.** This endpoint didn't exist for years — it was dashboard-only. If any cached documentation or SDK says "segment creation not supported via API," it's outdated. |
-| ℹ️ N/A by design | **No add/remove-member endpoint for segments.** Segment membership is computed continuously from the segment's rule definition. Profiles enter/exit automatically as they match/unmatch conditions. To change membership, change the rule (Update Segment). |
-
-### 3.5 Bridge operation: Segment snapshot → List
-
-Captures everyone currently matching a segment's rules into a new static List. The segment continues updating dynamically; the snapshot is frozen at capture time. This is the closest approximation to "manually fix segment membership" without editing the rule.
-
-> **Scope note:** This operation is currently included in the prototype but flagged as cuttable if it reads as scope creep beyond the two named skills.
 
 ---
 
-## 4. Cross-Skill Interaction — Profile Attributes → Segment Membership
+## 4. Scenario: Manage Segments (Skill 3)
 
-### 4.1 The dependency
+### 4.1 What the skill knows
 
-The Manage Profiles and Manage Audiences skills are not independent. A profile's custom properties determine which segments it lands in. Setting a property during upsert and creating a segment rule that references that property creates a causal link: **profile data quality drives audience membership** — without any explicit add-member call.
+The Manage Segments skill encodes priors about dynamic, rule-based audience management:
+
+- **Segments** are computed, not curated. Membership is determined continuously by a rule evaluated against profile data. There is no add/remove endpoint by design — this is not an omission, it is the concept.
+- **Segment membership reflects data quality, not configuration.** An empty segment after creation is almost always a signal that profiles don't have the expected property values — not that the segment rule is wrong or the API call failed.
+- **Rate limits on segment creation** are much tighter than on reads or list operations, because segments trigger compute jobs. A loop creating segments will exhaust the daily cap quickly, and the failure won't look like a typical rate-limit error until most of the quota is gone.
+- **To change who's in a segment, change the rule.** There is no membership-management endpoint to call. This surprises developers who expect CRUD-style audience membership.
+
+### 4.2 Klaviyo endpoint mapping
+
+| Operation | Endpoint | Method | Notes |
+|---|---|---|---|
+| Create segment | `/api/segments` | POST | ✅ |
+| Read segment | `/api/segments/{id}` | GET | ✅ |
+| Add/remove member | — | — | Not applicable by design |
+| Delete segment | `/api/segments/{id}` | DELETE | ✅ (lower research depth than other ops) |
+
+### 4.3 HITL review output — Manage Segments
+
+| Severity | Warning |
+|---|---|
+| 🟡 Behavioral | **Segment creation has a daily cap of 100/day** (burst 1/s, steady 15/min). A loop that creates segments will exhaust the daily quota fast, and the failure pattern won't look like a typical rate-limit error until most of the quota is gone. |
+| ℹ️ Historical | **Segment creation via API is relatively new.** This endpoint didn't exist for years — it was dashboard-only. If any cached documentation or SDK says "segment creation not supported via API," it's outdated. |
+| ℹ️ N/A by design | **No add/remove-member endpoint for segments.** Segment membership is computed continuously from the segment's rule definition. Profiles enter/exit automatically as they match/unmatch conditions. To change membership, change the rule (Update Segment). |
+| 🟡 Behavioral | **An empty segment is a data quality signal, not a config error.** If a newly created segment has zero members, the most likely cause is that no profiles have the property values the rule references. Verify profile data before debugging the segment definition. |
+
+### 4.4 Bridge operation: Segment snapshot → List
+
+Captures everyone currently matching a segment's rules into a new static List. The segment continues updating dynamically; the snapshot is frozen at capture time. This is the closest approximation to "manually fix segment membership" without editing the rule.
+
+> **Scope note:** This operation is currently included in the prototype but flagged as cuttable if it reads as scope creep beyond the three named skills.
+
+---
+
+## 5. Cross-Skill Interaction — Profile Attributes → Segment Membership
+
+### 5.1 The dependency
+
+The three skills are not independent. A profile's custom properties (Skill 1) determine which segments it lands in (Skill 3), independent of any list membership (Skill 2). Setting a property during upsert and creating a segment rule that references that property creates a causal link: **profile data quality drives audience membership** — without any explicit add-member call.
 
 This is the core CDP value proposition made visible: what you put into a profile determines where it shows up.
 
-### 4.2 The scenario
+### 5.2 The scenario
 
 1. Create a segment with a rule over a profile property — e.g., `properties.vip_tier = "gold"`
 2. Upsert a profile with that property set in the `properties` object
@@ -163,7 +184,7 @@ POST /api/profiles
 GET /api/segments/{id}  →  1 member
 ```
 
-### 4.3 Rule types and demo choice
+### 5.3 Rule types and demo choice
 
 Segment rules can reference three things:
 
@@ -175,15 +196,15 @@ Segment rules can reference three things:
 
 Profile properties is the right choice for the demo: one upsert, one wait, one confirmation.
 
-### 4.4 Implications for each skill
+### 5.4 Implications for each skill
 
 **Addition to Manage Profiles skill:** A profile property upsert can silently change segment membership. This is a hidden side effect — no audience-management call is made, but audience composition changes. The skill should flag this when setting custom properties: "this write may affect segment membership for any rule referencing this field."
 
-**Addition to Manage Audiences skill:** A segment with zero members after creation is usually a data quality problem, not a configuration problem. The skill should prompt: "confirm that profiles with the required property values exist before treating empty membership as an error."
+**Addition to Manage Segments skill:** A segment with zero members after creation is usually a data quality problem, not a configuration problem. The skill should prompt: "confirm that profiles with the required property values exist before treating empty membership as an error."
 
-### 4.5 Demo sequence
+### 5.5 Demo sequence
 
-This cross-skill sequence replaces the standalone segment creation in the Verification step (Section 7):
+This cross-skill sequence replaces the standalone segment creation in the Verification step (Section 8):
 
 1. `POST /api/segments` — create "VIP Gold Members" segment with `properties.vip_tier = "gold"` rule
 2. `POST /api/profiles` — upsert test profile with `properties.vip_tier = "gold"` set
@@ -194,23 +215,23 @@ This is a materially stronger payoff than isolated operations: it demonstrates c
 
 ---
 
-## 5. MCP Generation Step
+## 6. MCP Generation Step
 
-### 4.1 Input
-- HITL-reviewed endpoint list (the ~10 operations confirmed in Sections 2–3)
+### 6.1 Input
+- HITL-reviewed endpoint list (the ~10 operations confirmed in Sections 2–4)
 - Klaviyo OpenAPI spec files (per-category): `profiles.json`, `lists.json`, `segments.json`, `data-privacy.json`
 
-### 4.2 Tool selection
+### 6.2 Tool selection
 
 **Primary:** `ckanthony/openapi-mcp` — Dockerized, reads OpenAPI spec directly, supports include/exclude filtering by tag/operation. Filtering is the key capability: the full Klaviyo spec covers hundreds of endpoints; the demo scopes to ~10.
 
 **Fallback:** `harsha-iiiv/openapi-mcp-generator` — TypeScript output, Zod-based runtime validation, supports multiple auth schemes including API key. Use if the primary generator can't handle Klaviyo's JSON:API response envelope format.
 
-> **Neither generator has been pulled and test-run yet.** Before wiring this step, pull the real Klaviyo spec files and validate them against the endpoint table in Sections 2–3.
+> **Neither generator has been pulled and test-run yet.** Before wiring this step, pull the real Klaviyo spec files and validate them against the endpoint table in Sections 2–4.
 
-### 4.3 Output
+### 6.3 Output
 
-A runnable MCP server scoped to the Manage Profiles and Manage Audiences operations.
+A runnable MCP server scoped to the Manage Profiles, Manage Audiences, and Manage Segments operations.
 
 **Acceptance criteria:**
 - Server starts without error
@@ -219,9 +240,9 @@ A runnable MCP server scoped to the Manage Profiles and Manage Audiences operati
 
 ---
 
-## 6. Klaviyo Domain Skill (MCP Companion)
+## 7. Klaviyo Domain Skill (MCP Companion)
 
-### 5.1 Why the MCP server alone is not enough
+### 7.1 Why the MCP server alone is not enough
 
 The OpenAPI→MCP generator produces an API wrapper — tool definitions that map MCP calls to Klaviyo endpoints. It does not encode behavioral knowledge. An LLM using the generated MCP server with no additional context will:
 
@@ -232,7 +253,7 @@ The OpenAPI→MCP generator produces an API wrapper — tool definitions that ma
 
 The domain skill is the answer to "what does the model need to know to use these tools correctly."
 
-### 5.2 Approach: two-layer skill delivery
+### 7.2 Approach: two-layer skill delivery
 
 **Layer 1 — Enriched OpenAPI spec (pre-generation)**
 Before running the OpenAPI→MCP generator, pre-process the Klaviyo spec to inject richer `description` fields on the ~10 scoped operations. This embeds the most critical behavioral facts directly into the tool definitions, making the MCP server safer in standalone use.
@@ -242,15 +263,16 @@ Key enrichments per operation:
 | Operation | Enrichment to add |
 |---|---|
 | `POST /api/data-privacy-deletion-jobs` | Async, irreversible, 60/min steady rate limit, known 401 post-revision-bump issue |
-| `POST /api/profiles` | Idempotent upsert — re-sending the same identifier silently overwrites |
+| `POST /api/profiles` | Idempotent upsert — re-sending the same identifier silently overwrites; setting custom properties may affect segment membership |
 | `GET /api/profiles` | No bulk export; follow `links.next` cursor until exhausted |
 | `POST /api/lists/{id}/subscribe` | Consent-aware path; double opt-in (Klaviyo default) returns 200 empty and adds no one |
 | `POST /api/lists/{id}/relationships/profiles` | Adds immediately, no consent granted; requires profile ID not email |
 | `DELETE /api/lists/{id}/relationships/profiles` | Removes from list only — does not affect subscription/consent status |
-| `POST /api/segments` | Daily cap 100/day; burst 1/s, steady 15/min; historically dashboard-only, API endpoint is relatively new |
+| `POST /api/segments` | Daily cap 100/day; burst 1/s, steady 15/min; membership is computed not writable |
+| `GET /api/segments/{id}` | Membership updates 10–60s after profile data changes; zero members usually means data quality issue, not config error |
 
 **Layer 2 — Companion Claude skill file (full domain knowledge)**
-A markdown skill file (`skills/klaviyo-api.md`) loaded into context when an LLM session uses the Klaviyo MCP server. Contains the complete domain knowledge from the Manage Profiles and Manage Audiences skills, structured for LLM consumption.
+A markdown skill file (`skills/klaviyo-api.md`) loaded into context when an LLM session uses the Klaviyo MCP server. Contains the complete domain knowledge from all three skills, structured for LLM consumption.
 
 ```
 skills/
@@ -260,7 +282,7 @@ docs/
 └── fsd.md
 ```
 
-### 5.3 Companion skill structure
+### 7.3 Companion skill structure
 
 The skill file (`skills/klaviyo-api.md`) is organized to answer the questions a model will have before calling each tool:
 
@@ -268,30 +290,31 @@ The skill file (`skills/klaviyo-api.md`) is organized to answer the questions a 
 # Klaviyo API Domain Skill
 
 ## Auth
-## Manage Profiles
+## Manage Profiles (Skill 1)
   ### Upsert — what to know before calling
   ### Delete — what to know before calling
   ### Download All — what to know before calling
-## Manage Audiences — Lists
+## Manage Audiences — Lists (Skill 2)
   ### Create
   ### Add Member — TWO PATHS, read this first
   ### Remove Member
   ### Delete
-## Manage Audiences — Segments
+## Manage Segments (Skill 3)
   ### Create — rate limits
   ### Membership — not writable, read this first
   ### Delete
+## Cross-Skill Interaction — Profile Properties → Segment Membership
 ## Segment Snapshot → List (bridge operation)
 ## Known Live Issues
 ```
 
-### 5.4 Integration point
+### 7.4 Integration point
 
 The companion skill is loaded at session start when Claude is used to drive the MCP server. It is the same domain knowledge that powered the HITL review step — repurposed for runtime guidance rather than pre-flight review. This is the demo beat: the skill's value doesn't end at the review screen.
 
 ---
 
-## 7. Verification / Payoff Step
+## 8. Verification / Payoff Step
 
 **Sequence (against a real Klaviyo free-tier account):**
 
@@ -299,10 +322,11 @@ The companion skill is loaded at session start when Claude is used to drive the 
 2. Verify profile appears in Klaviyo dashboard
 3. Add profile to a test list (via `subscribe` endpoint, with double opt-in disabled for test)
 4. Verify list membership in dashboard
-5. Create a test segment with a rule that matches the test profile
-6. Verify segment membership in dashboard (near-real-time)
+5. Create a test segment with a rule that matches the test profile's custom property
+6. Wait ~30 seconds (surface explicitly in UI — computation, not failure)
+7. Verify segment membership in dashboard (no add-member call made)
 
-**What success looks like in the UI:** Green status indicator per step, Klaviyo dashboard screenshot or API response body shown inline.
+**What success looks like in the UI:** Green status indicator per step, Klaviyo dashboard screenshot or API response body shown inline. The 30-second wait has a visible countdown/spinner labeled "Klaviyo computing segment membership…"
 
 **Pre-demo checklist:**
 - Klaviyo account created, private API key generated with appropriate scopes (Profiles: full, Lists: full, Segments: full, Data Privacy: full)
@@ -311,7 +335,7 @@ The companion skill is loaded at session start when Claude is used to drive the 
 
 ---
 
-## 8. Non-Functional Requirements
+## 9. Non-Functional Requirements
 
 | Requirement | Spec |
 |---|---|
@@ -324,7 +348,7 @@ The companion skill is loaded at session start when Claude is used to drive the 
 
 ---
 
-## 9. Open Questions
+## 10. Open Questions
 
 These were flagged at end of prior session and are not yet resolved:
 
