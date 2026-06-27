@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-Assisted Martech Integration Builder — Demo Flow</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:           #F8F4EE;
+    --bg-card:      #FFFFFF;
+    --ink:          #1C1917;
+    --ink-muted:    #78716C;
+    --ink-faint:    #A8A09A;
+    --border:       #E2D9C8;
+    --border-focus: #1C1917;
+
+    --green:        #16A34A;
+    --green-light:  #DCFCE7;
+    --green-text:   #15803D;
+
+    --blue:         #3B82F6;
+    --blue-light:   #DBEAFE;
+    --blue-text:    #1D4ED8;
+
+    --amber:        #D97706;
+    --amber-light:  #FEF3C7;
+    --amber-text:   #92400E;
+
+    --red:          #DC2626;
+    --red-light:    #FEE2E2;
+    --red-text:     #7F1D1D;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* ── SHELL ── */
+  .shell {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 36px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .topbar-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+
+  .topbar-version {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-faint);
+  }
+
+  /* ── STEP INDICATOR ── */
+  .step-indicator {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 48px;
+  }
+
+  .step-pip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    flex: 1;
+    position: relative;
+    text-decoration: none;
+  }
+
+  .step-pip:focus-visible .pip-circle { outline: 2px solid var(--blue); outline-offset: 3px; }
+
+  .pip-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+
+  .pip-circle {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--bg-card);
+    color: var(--ink-faint);
+    flex-shrink: 0;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+  }
+
+  .step-pip.s-current .pip-circle {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: #fff;
+  }
+
+  .step-pip.s-done .pip-circle {
+    background: var(--green);
+    border-color: var(--green);
+    color: #fff;
+    font-size: 13px;
+  }
+
+  .pip-line {
+    flex: 1;
+    height: 2px;
+    background: var(--border);
+    transition: background 0.3s;
+  }
+
+  .pip-line.done { background: var(--green); }
+
+  .pip-label {
+    font-size: 11px;
+    color: var(--ink-faint);
+    text-align: center;
+    white-space: nowrap;
+    line-height: 1.3;
+    padding-top: 2px;
+  }
+
+  .step-pip.s-current .pip-label {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .step-pip.s-done .pip-label { color: var(--green-text); }
+
+  /* last pip: no line after it */
+  .step-pip:last-child .pip-row { justify-content: center; }
+
+  /* ── SCREEN AREA ── */
+  .screen { display: none; flex: 1; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  .screen-header {
+    margin-bottom: 28px;
+  }
+
+  .screen-eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 8px;
+  }
+
+  .screen-title {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+
+  .screen-sub {
+    font-size: 14px;
+    color: var(--ink-muted);
+    margin-top: 6px;
+  }
+
+  /* ── FORM ELEMENTS ── */
+  .field-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  .field-group { margin-bottom: 24px; }
+
+  .toggle-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .toggle-btn {
+    padding: 9px 18px;
+    border-radius: 6px;
+    border: 1.5px solid var(--border);
+    background: var(--bg-card);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .toggle-btn.selected {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: #fff;
+  }
+
+  .toggle-btn:hover:not(.selected) {
+    border-color: var(--ink-muted);
+    color: var(--ink);
+  }
+
+  textarea.spec-input {
+    width: 100%;
+    height: 180px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--ink);
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    padding: 14px 16px;
+    resize: vertical;
+    transition: border-color 0.15s;
+    outline: none;
+  }
+
+  textarea.spec-input:focus { border-color: var(--border-focus); }
+
+  .spec-hint {
+    font-size: 12px;
+    color: var(--ink-faint);
+    margin-top: 8px;
+    font-style: italic;
+  }
+
+  /* ── MATCH TABLE ── */
+  .match-section { margin-bottom: 24px; }
+
+  .match-section-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 10px;
+  }
+
+  .match-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 13px;
+  }
+
+  .match-table thead tr {
+    background: var(--bg);
+    border-bottom: 1.5px solid var(--border);
+  }
+
+  .match-table th {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    padding: 10px 14px;
+    text-align: left;
+  }
+
+  .match-table td {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+
+  .match-table tr:last-child td { border-bottom: none; }
+
+  .match-table .op-name { font-weight: 500; color: var(--ink); }
+  .match-table .ep {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-muted);
+  }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  .badge-confirmed { background: var(--green-light); color: var(--green-text); }
+  .badge-warn      { background: var(--amber-light); color: var(--amber-text); }
+  .badge-na        { background: #F1F5F9; color: #64748B; }
+
+  /* ── REVIEW SCREEN ── */
+  .warning-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+
+  .warning-item {
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    padding: 14px 16px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .warning-item.sev-red   { border-left: 4px solid var(--red);   background: #FFFAFA; }
+  .warning-item.sev-amber { border-left: 4px solid var(--amber); background: #FFFCF5; }
+  .warning-item.sev-info  { border-left: 4px solid #94A3B8; }
+
+  .warn-icon { font-size: 16px; flex-shrink: 0; line-height: 1.4; }
+  .warn-body { flex: 1; }
+  .warn-title { font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 3px; }
+  .warn-desc  { font-size: 12px; color: var(--ink-muted); line-height: 1.55; }
+
+  .ack-section {
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+
+  .ack-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 14px;
+  }
+
+  .ack-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+
+  .ack-item:last-child { margin-bottom: 0; }
+
+  .ack-item input[type="checkbox"] {
+    margin-top: 2px;
+    width: 16px;
+    height: 16px;
+    accent-color: var(--ink);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .ack-item label {
+    font-size: 13px;
+    color: var(--ink-muted);
+    cursor: pointer;
+    line-height: 1.5;
+  }
+
+  /* ── GENERATION SCREEN ── */
+  .gen-terminal {
+    background: #0D1117;
+    border-radius: 8px;
+    padding: 20px 20px 24px;
+    margin-bottom: 20px;
+    min-height: 180px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+  }
+
+  .gen-terminal .log-line {
+    color: #7EE787;
+    opacity: 0;
+    animation: fadein 0.15s forwards;
+  }
+
+  .gen-terminal .log-line.dim { color: #8B949E; }
+  .gen-terminal .log-line.done-line { color: #58A6FF; font-weight: 600; }
+
+  @keyframes fadein { to { opacity: 1; } }
+
+  .gen-tools {
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    display: none;
+  }
+
+  .gen-tools.visible { display: block; }
+
+  .gen-tools-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .gen-success-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--green-light);
+    color: var(--green-text);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 5px;
+  }
+
+  .tool-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 8px;
+  }
+
+  .tool-chip {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-muted);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 6px 10px;
+  }
+
+  /* ── VERIFICATION SCREEN ── */
+  .verify-steps { display: flex; flex-direction: column; gap: 12px; margin-bottom: 28px; }
+
+  .verify-step {
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+
+  .verify-step.vs-done { border-color: var(--green); background: #F8FFF8; }
+
+  .vs-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .verify-step.vs-done .vs-icon {
+    border-color: var(--green);
+    background: var(--green-light);
+    color: var(--green);
+  }
+
+  .vs-body { flex: 1; }
+  .vs-title { font-size: 14px; font-weight: 600; color: var(--ink); margin-bottom: 3px; }
+  .vs-detail { font-size: 12px; color: var(--ink-muted); }
+  .vs-code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+    margin-top: 6px;
+  }
+
+  .complete-banner {
+    background: var(--green-light);
+    border: 1.5px solid var(--green);
+    border-radius: 8px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .complete-icon { font-size: 28px; }
+
+  .complete-text h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--green-text);
+    margin-bottom: 3px;
+  }
+
+  .complete-text p {
+    font-size: 13px;
+    color: var(--green-text);
+    opacity: 0.8;
+  }
+
+  /* ── NAV BUTTONS ── */
+  .nav-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 36px;
+    border-top: 1px solid var(--border);
+  }
+
+  .nav-step-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+
+  .nav-buttons { display: flex; gap: 10px; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1.5px solid;
+    transition: all 0.15s;
+    text-decoration: none;
+  }
+
+  .btn-secondary {
+    background: var(--bg-card);
+    border-color: var(--border);
+    color: var(--ink-muted);
+  }
+
+  .btn-secondary:hover { border-color: var(--ink-muted); color: var(--ink); }
+
+  .btn-primary {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: #fff;
+  }
+
+  .btn-primary:hover { background: #3B3329; border-color: #3B3329; }
+  .btn-primary:disabled { background: var(--border); border-color: var(--border); color: var(--ink-faint); cursor: not-allowed; }
+
+  .btn-restart {
+    background: var(--green);
+    border-color: var(--green);
+    color: #fff;
+  }
+
+  .btn-restart:hover { background: var(--green-text); border-color: var(--green-text); }
+
+  #prev-btn { visibility: hidden; }
+  #restart-btn { display: none; }
+
+  /* ── SUMMARY STATS ── */
+  .stat-row {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+
+  .stat-chip {
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .stat-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--ink-muted);
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <span class="topbar-title">AI-Assisted Martech Integration Builder</span>
+    <span class="topbar-version">Demo Flow · v1.0 · Klaviyo</span>
+  </div>
+
+  <!-- STEP INDICATOR -->
+  <div class="step-indicator" id="step-indicator">
+    <div class="step-pip s-current" onclick="goTo(1)" tabindex="0" role="button" aria-label="Step 1: Spec Input">
+      <div class="pip-row">
+        <div class="pip-circle" id="pip-1">1</div>
+        <div class="pip-line" id="line-1"></div>
+      </div>
+      <div class="pip-label">Spec<br>Input</div>
+    </div>
+    <div class="step-pip" onclick="goTo(2)" tabindex="0" role="button" aria-label="Step 2: Skill Match">
+      <div class="pip-row">
+        <div class="pip-circle" id="pip-2">2</div>
+        <div class="pip-line" id="line-2"></div>
+      </div>
+      <div class="pip-label">Skill<br>Match</div>
+    </div>
+    <div class="step-pip" onclick="goTo(3)" tabindex="0" role="button" aria-label="Step 3: HITL Review">
+      <div class="pip-row">
+        <div class="pip-circle" id="pip-3">3</div>
+        <div class="pip-line" id="line-3"></div>
+      </div>
+      <div class="pip-label">HITL<br>Review</div>
+    </div>
+    <div class="step-pip" onclick="goTo(4)" tabindex="0" role="button" aria-label="Step 4: MCP Generation">
+      <div class="pip-row">
+        <div class="pip-circle" id="pip-4">4</div>
+        <div class="pip-line" id="line-4"></div>
+      </div>
+      <div class="pip-label">MCP<br>Generation</div>
+    </div>
+    <div class="step-pip" onclick="goTo(5)" tabindex="0" role="button" aria-label="Step 5: Verification">
+      <div class="pip-row">
+        <div class="pip-circle" id="pip-5">5</div>
+      </div>
+      <div class="pip-label">Verification<br>Payoff</div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 1: SPEC INPUT ── -->
+  <div class="screen active" id="screen-1">
+    <div class="screen-header">
+      <div class="screen-eyebrow">Step 01 of 05</div>
+      <div class="screen-title">Load your API spec</div>
+      <div class="screen-sub">Select the integration scenario, then paste or upload a structured spec. No prose scraping — OpenAPI, Postman, or <code style="font-family:'IBM Plex Mono',monospace">$discovery</code> only.</div>
+    </div>
+
+    <div class="field-group">
+      <span class="field-label">Scenario</span>
+      <div class="toggle-group">
+        <button class="toggle-btn selected" onclick="toggleScenario(this)">Manage Profiles</button>
+        <button class="toggle-btn selected" onclick="toggleScenario(this)">Manage Audiences</button>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <span class="field-label">Platform</span>
+      <div class="toggle-group">
+        <button class="toggle-btn selected">Klaviyo</button>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <span class="field-label">OpenAPI Spec</span>
+      <textarea class="spec-input" spellcheck="false">{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Klaviyo API",
+    "version": "2024-10-15",
+    "description": "The Klaviyo REST API."
+  },
+  "servers": [{ "url": "https://a.klaviyo.com" }],
+  "paths": {
+    "/api/profiles": {
+      "post": { "operationId": "createProfile", "tags": ["Profiles"] },
+      "get":  { "operationId": "getProfiles",   "tags": ["Profiles"] }
+    },
+    "/api/data-privacy-deletion-jobs": {
+      "post": { "operationId": "requestProfileDeletion", "tags": ["Data Privacy"] }
+    },
+    "/api/lists": {
+      "post": { "operationId": "createList", "tags": ["Lists"] }
+    }
+  }
+}</textarea>
+      <div class="spec-hint">Pre-filled with a Klaviyo spec excerpt for demo purposes.</div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 2: SKILL MATCH ── -->
+  <div class="screen" id="screen-2">
+    <div class="screen-header">
+      <div class="screen-eyebrow">Step 02 of 05</div>
+      <div class="screen-title">Skill match complete</div>
+      <div class="screen-sub">Spec endpoints aligned against domain priors. Multi-step operations identified. Warnings queued for review.</div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-chip">
+        <div class="stat-num">10</div>
+        <div class="stat-label">operations confirmed</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-num">6</div>
+        <div class="stat-label">skill-sourced warnings</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-num">1</div>
+        <div class="stat-label">not-applicable-by-design</div>
+      </div>
+    </div>
+
+    <div class="match-section">
+      <div class="match-section-label">Manage Profiles</div>
+      <table class="match-table">
+        <thead>
+          <tr>
+            <th>Operation</th>
+            <th>Endpoint</th>
+            <th>Method</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="op-name">Upsert</td>
+            <td class="ep">/api/profiles</td>
+            <td class="ep">POST</td>
+            <td><span class="status-badge badge-confirmed">✓ confirmed</span></td>
+          </tr>
+          <tr>
+            <td class="op-name">Delete</td>
+            <td class="ep">/api/data-privacy-deletion-jobs</td>
+            <td class="ep">POST</td>
+            <td><span class="status-badge badge-warn">⚠ 2 warnings</span></td>
+          </tr>
+          <tr>
+            <td class="op-name">Download all</td>
+            <td class="ep">/api/profiles (paginated)</td>
+            <td class="ep">GET</td>
+            <td><span class="status-badge badge-warn">⚠ multi-step</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="match-section">
+      <div class="match-section-label">Manage Audiences — Lists</div>
+      <table class="match-table">
+        <thead>
+          <tr>
+            <th>Operation</th>
+            <th>Endpoint</th>
+            <th>Method</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="op-name">Create list</td>
+            <td class="ep">/api/lists</td>
+            <td class="ep">POST</td>
+            <td><span class="status-badge badge-confirmed">✓ confirmed</span></td>
+          </tr>
+          <tr>
+            <td class="op-name">Add member</td>
+            <td class="ep">/api/lists/{id}/subscribe</td>
+            <td class="ep">POST</td>
+            <td><span class="status-badge badge-warn">⚠ 2 paths</span></td>
+          </tr>
+          <tr>
+            <td class="op-name">Remove member</td>
+            <td class="ep">/api/lists/{id}/relationships/profiles</td>
+            <td class="ep">DELETE</td>
+            <td><span class="status-badge badge-warn">⚠ 1 warning</span></td>
+          </tr>
+          <tr>
+            <td class="op-name">Delete list</td>
+            <td class="ep">/api/lists/{id}</td>
+            <td class="ep">DELETE</td>
+            <td><span class="status-badge badge-confirmed">✓ confirmed</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="match-section">
+      <div class="match-section-label">Manage Audiences — Segments</div>
+      <table class="match-table">
+        <thead>
+          <tr>
+            <th>Operation</th>
+            <th>Endpoint</th>
+            <th>Method</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="op-name">Create segment</td>
+            <td class="ep">/api/segments</td>
+            <td class="ep">POST</td>
+            <td><span class="status-badge badge-warn">⚠ rate limit</span></td>
+          </tr>
+          <tr>
+            <td class="op-name">Read segment</td>
+            <td class="ep">/api/segments/{id}</td>
+            <td class="ep">GET</td>
+            <td><span class="status-badge badge-confirmed">✓ confirmed</span></td>
+          </tr>
+          <tr>
+            <td class="op-name">Add/remove member</td>
+            <td class="ep">—</td>
+            <td class="ep">—</td>
+            <td><span class="status-badge badge-na">N/A by design</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 3: HITL REVIEW ── -->
+  <div class="screen" id="screen-3">
+    <div class="screen-header">
+      <div class="screen-eyebrow">Step 03 of 05</div>
+      <div class="screen-title">Review before generating</div>
+      <div class="screen-sub">All endpoints are spec-confirmed — nothing was inferred or guessed. The warnings below come from the domain skill, not the spec. Acknowledge the two highest-severity items to proceed.</div>
+    </div>
+
+    <div class="warning-list">
+      <div class="warning-item sev-red">
+        <div class="warn-icon">🔴</div>
+        <div class="warn-body">
+          <div class="warn-title">Profile delete is async and irreversible</div>
+          <div class="warn-desc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px">POST /api/data-privacy-deletion-jobs</code> submits a request — the profile is not gone immediately. No soft-delete, no undo. Rate limit is 60/min steady, far below profile writes. A 401 immediately after an API revision bump is not a bad key — confirmed live issue, April 2026.</div>
+        </div>
+      </div>
+      <div class="warning-item sev-red">
+        <div class="warn-icon">🔴</div>
+        <div class="warn-body">
+          <div class="warn-title">Two list add-member paths — different consent outcomes</div>
+          <div class="warn-desc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px">subscribe</code> is consent-aware but returns 200 empty and adds nobody if double opt-in is on (Klaviyo's default). <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">relationships/profiles</code> adds immediately but grants no consent. Both look identical in the response.</div>
+        </div>
+      </div>
+      <div class="warning-item sev-amber">
+        <div class="warn-icon">🟡</div>
+        <div class="warn-body">
+          <div class="warn-title">Upsert is silent — no create vs. update distinction</div>
+          <div class="warn-desc">Re-sending the same email or external ID silently overwrites the existing profile. No error, no duplicate. Design your pipeline to treat every <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">POST /api/profiles</code> as an overwrite.</div>
+        </div>
+      </div>
+      <div class="warning-item sev-amber">
+        <div class="warn-icon">🟡</div>
+        <div class="warn-body">
+          <div class="warn-title">Segment creation: 100/day daily cap</div>
+          <div class="warn-desc">Burst 1/s, steady 15/min, and a hard 100-per-day ceiling. A loop exhausts quota silently before the failure pattern becomes obvious. Segment membership is computed — you cannot add or remove members directly.</div>
+        </div>
+      </div>
+      <div class="warning-item sev-info">
+        <div class="warn-icon">ℹ️</div>
+        <div class="warn-body">
+          <div class="warn-title">Add member requires a profile ID, not an email</div>
+          <div class="warn-desc">For a net-new contact, this is a two-step sequence: create/resolve the profile first, get back an ID, then add to the list by ID. The Bulk Profile Import API can do both in one call.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ack-section">
+      <div class="ack-label">Required acknowledgments</div>
+      <div class="ack-item">
+        <input type="checkbox" id="ack-delete" onchange="checkAcks()">
+        <label for="ack-delete">I understand that profile deletion is async, irreversible, and rate-limited at 60/min. I will test the delete step before running a live demo.</label>
+      </div>
+      <div class="ack-item">
+        <input type="checkbox" id="ack-subscribe" onchange="checkAcks()">
+        <label for="ack-subscribe">I understand the two list add-member paths have different consent semantics and will confirm double opt-in settings before testing the subscribe endpoint.</label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 4: MCP GENERATION ── -->
+  <div class="screen" id="screen-4">
+    <div class="screen-header">
+      <div class="screen-eyebrow">Step 04 of 05</div>
+      <div class="screen-title">Generating MCP server</div>
+      <div class="screen-sub">Running <code style="font-family:'IBM Plex Mono',monospace">openapi-mcp</code> against the enriched Klaviyo spec, scoped to the 10 confirmed operations. Behavioral warnings are embedded in tool descriptions.</div>
+    </div>
+
+    <div class="gen-terminal" id="gen-log"></div>
+
+    <div class="gen-tools" id="gen-tools">
+      <div class="gen-tools-header">
+        <span class="gen-success-badge">✓ 10 tools generated</span>
+      </div>
+      <div class="tool-grid">
+        <div class="tool-chip">upsert_profile</div>
+        <div class="tool-chip">delete_profile</div>
+        <div class="tool-chip">list_profiles</div>
+        <div class="tool-chip">create_list</div>
+        <div class="tool-chip">add_list_member</div>
+        <div class="tool-chip">remove_list_member</div>
+        <div class="tool-chip">delete_list</div>
+        <div class="tool-chip">create_segment</div>
+        <div class="tool-chip">get_segment</div>
+        <div class="tool-chip">delete_segment</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SCREEN 5: VERIFICATION ── -->
+  <div class="screen" id="screen-5">
+    <div class="screen-header">
+      <div class="screen-eyebrow">Step 05 of 05</div>
+      <div class="screen-title">Live verification</div>
+      <div class="screen-sub">Real API calls against a Klaviyo free-tier account. All four steps confirmed in the Klaviyo dashboard.</div>
+    </div>
+
+    <div class="verify-steps">
+      <div class="verify-step vs-done">
+        <div class="vs-icon">✓</div>
+        <div class="vs-body">
+          <div class="vs-title">Profile upserted</div>
+          <div class="vs-detail">test.demo@example.com created via <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">POST /api/profiles</code>. Profile ID returned.</div>
+          <div class="vs-code">→ 200 OK · id: "01J3K8..."</div>
+        </div>
+      </div>
+      <div class="verify-step vs-done">
+        <div class="vs-icon">✓</div>
+        <div class="vs-body">
+          <div class="vs-title">Added to list</div>
+          <div class="vs-detail">Profile added to "Demo List" via <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">POST /api/lists/{id}/subscribe</code>. Double opt-in disabled on test list.</div>
+          <div class="vs-code">→ 202 Accepted · membership confirmed in dashboard</div>
+        </div>
+      </div>
+      <div class="verify-step vs-done">
+        <div class="vs-icon">✓</div>
+        <div class="vs-body">
+          <div class="vs-title">Segment created</div>
+          <div class="vs-detail">"Demo Segment" created with rule: email contains "example.com". Rule matched test profile within ~30s.</div>
+          <div class="vs-code">→ 201 Created · id: "VmYgSR" · 1 member</div>
+        </div>
+      </div>
+      <div class="verify-step vs-done">
+        <div class="vs-icon">✓</div>
+        <div class="vs-body">
+          <div class="vs-title">Dashboard confirmed</div>
+          <div class="vs-detail">Profile, list membership, and segment visible in Klaviyo. All three objects match the API responses above.</div>
+          <div class="vs-code">→ Klaviyo dashboard · Profiles · Lists · Segments</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="complete-banner">
+      <div class="complete-icon">✅</div>
+      <div class="complete-text">
+        <h3>Integration complete</h3>
+        <p>10 operations · 0 errors · Manage Profiles + Manage Audiences · Klaviyo</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- NAV BAR -->
+  <div class="nav-bar">
+    <span class="nav-step-count" id="step-count">Step 1 of 5</span>
+    <div class="nav-buttons">
+      <button class="btn btn-secondary" id="prev-btn" onclick="prev()">← Back</button>
+      <button class="btn btn-primary" id="next-btn" onclick="next()">Continue →</button>
+      <button class="btn btn-restart" id="restart-btn" onclick="goTo(1)">Start over</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  let current = 1;
+  const total = 5;
+  let genDone = false;
+
+  function goTo(n) {
+    if (n < 1 || n > total) return;
+
+    // hide all screens
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + n).classList.add('active');
+
+    // update step indicator pips
+    for (let i = 1; i <= total; i++) {
+      const pip = document.getElementById('pip-' + i);
+      const pipEl = pip.closest('.step-pip');
+      pipEl.classList.remove('s-current', 's-done');
+      if (i === n)      { pipEl.classList.add('s-current'); pip.textContent = i; }
+      else if (i < n)   { pipEl.classList.add('s-done');    pip.textContent = '✓'; }
+      else              { pip.textContent = i; }
+    }
+
+    // update connector lines
+    for (let i = 1; i < total; i++) {
+      const line = document.getElementById('line-' + i);
+      if (line) line.classList.toggle('done', i < n);
+    }
+
+    // nav buttons
+    document.getElementById('prev-btn').style.visibility = n === 1 ? 'hidden' : 'visible';
+    document.getElementById('next-btn').style.display    = n === total ? 'none' : 'inline-flex';
+    document.getElementById('restart-btn').style.display = n === total ? 'inline-flex' : 'none';
+    document.getElementById('step-count').textContent = 'Step ' + n + ' of ' + total;
+
+    // screen 3: re-check ack state
+    if (n === 3) checkAcks();
+
+    // screen 4: run generation
+    if (n === 4 && !genDone) runGeneration();
+
+    current = n;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function next() { goTo(current + 1); }
+  function prev() { goTo(current - 1); }
+
+  function toggleScenario(btn) {
+    btn.classList.toggle('selected');
+  }
+
+  function checkAcks() {
+    const a = document.getElementById('ack-delete').checked;
+    const b = document.getElementById('ack-subscribe').checked;
+    document.getElementById('next-btn').disabled = !(a && b);
+  }
+
+  function runGeneration() {
+    const log = document.getElementById('gen-log');
+    const tools = document.getElementById('gen-tools');
+    log.innerHTML = '';
+    tools.classList.remove('visible');
+
+    const lines = [
+      { text: '$ openapi-mcp --spec klaviyo-enriched.json \\', cls: '' },
+      { text: '    --include-tags Profiles,Lists,Segments,DataPrivacy \\', cls: 'dim' },
+      { text: '    --auth-header "Authorization: Klaviyo-API-Key {key}"', cls: 'dim' },
+      { text: '', cls: '' },
+      { text: 'Loading spec... 847 operations found', cls: 'dim' },
+      { text: 'Applying scope filter... 10 operations selected', cls: 'dim' },
+      { text: 'Enriched descriptions detected on 10/10 operations', cls: 'dim' },
+      { text: 'Generating tool definitions...', cls: 'dim' },
+      { text: 'Writing MCP server to ./klaviyo-mcp/', cls: 'dim' },
+      { text: '', cls: '' },
+      { text: '✓ Done. 10 tools generated.', cls: 'done-line' },
+    ];
+
+    let i = 0;
+    const interval = setInterval(() => {
+      if (i >= lines.length) {
+        clearInterval(interval);
+        tools.classList.add('visible');
+        genDone = true;
+        return;
+      }
+      const div = document.createElement('div');
+      div.className = 'log-line' + (lines[i].cls ? ' ' + lines[i].cls : '');
+      div.textContent = lines[i].text;
+      log.appendChild(div);
+      log.scrollTop = log.scrollHeight;
+      i++;
+    }, 350);
+  }
+
+  // keyboard nav
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') next();
+    if (e.key === 'ArrowLeft')  prev();
+  });
+
+  // init
+  goTo(1);
+</script>
+</body>
+</html>
