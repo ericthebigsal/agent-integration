@@ -1562,6 +1562,9 @@
   function prev() { goTo(current - 1); }
 
   async function runLiveDemo() {
+    const btn = document.querySelector('[onclick="runLiveDemo()"]');
+    if (btn) btn.disabled = true;
+
     const container = document.getElementById('live-steps');
     if (!container) return;
     container.innerHTML = '<p style="color:var(--ink-muted);font-size:13px">Calling Klaviyo API…</p>';
@@ -1573,6 +1576,7 @@
       const result = await run.json();
 
       const segmentId = result.segment_id;
+      if (!segmentId) throw new Error('segment_id missing from /demo/run response');
       const profileId = result.profile_id;
 
       container.innerHTML = result.steps.map(s => {
@@ -1622,6 +1626,9 @@
 
     } catch (err) {
       container.innerHTML = `<p style="color:var(--red)">${err.message} — is the backend running at ${BACKEND_URL}?</p>`;
+      if (btn) btn.disabled = false;
+    } finally {
+      if (btn) btn.disabled = false;
     }
   }
 
