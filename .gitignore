@@ -11,3 +11,6 @@ venv/
 generated_connector/*.py
 review/
 klaviyo-openapi/json/
+klaviyo-openapi/merged/
+mcp-server/node_modules/
+mcp-server/build/
