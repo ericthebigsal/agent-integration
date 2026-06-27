@@ -135,7 +135,79 @@ A runnable MCP server scoped to the Manage Profiles and Manage Audiences operati
 
 ---
 
-## 5. Verification / Payoff Step
+## 5. Klaviyo Domain Skill (MCP Companion)
+
+### 5.1 Why the MCP server alone is not enough
+
+The OpenAPI→MCP generator produces an API wrapper — tool definitions that map MCP calls to Klaviyo endpoints. It does not encode behavioral knowledge. An LLM using the generated MCP server with no additional context will:
+
+- Call `delete_profile` and assume the profile is gone immediately (it isn't)
+- Call `add_list_member` via the wrong endpoint and silently add no one
+- Attempt to modify segment membership directly (the concept doesn't exist)
+- Treat a post-revision 401 on delete as a credentials error and prompt for a new key
+
+The domain skill is the answer to "what does the model need to know to use these tools correctly."
+
+### 5.2 Approach: two-layer skill delivery
+
+**Layer 1 — Enriched OpenAPI spec (pre-generation)**
+Before running the OpenAPI→MCP generator, pre-process the Klaviyo spec to inject richer `description` fields on the ~10 scoped operations. This embeds the most critical behavioral facts directly into the tool definitions, making the MCP server safer in standalone use.
+
+Key enrichments per operation:
+
+| Operation | Enrichment to add |
+|---|---|
+| `POST /api/data-privacy-deletion-jobs` | Async, irreversible, 60/min steady rate limit, known 401 post-revision-bump issue |
+| `POST /api/profiles` | Idempotent upsert — re-sending the same identifier silently overwrites |
+| `GET /api/profiles` | No bulk export; follow `links.next` cursor until exhausted |
+| `POST /api/lists/{id}/subscribe` | Consent-aware path; double opt-in (Klaviyo default) returns 200 empty and adds no one |
+| `POST /api/lists/{id}/relationships/profiles` | Adds immediately, no consent granted; requires profile ID not email |
+| `DELETE /api/lists/{id}/relationships/profiles` | Removes from list only — does not affect subscription/consent status |
+| `POST /api/segments` | Daily cap 100/day; burst 1/s, steady 15/min; historically dashboard-only, API endpoint is relatively new |
+
+**Layer 2 — Companion Claude skill file (full domain knowledge)**
+A markdown skill file (`skills/klaviyo-api.md`) loaded into context when an LLM session uses the Klaviyo MCP server. Contains the complete domain knowledge from the Manage Profiles and Manage Audiences skills, structured for LLM consumption.
+
+```
+skills/
+└── klaviyo-api.md    ← companion skill (full domain knowledge)
+docs/
+├── brd.md
+└── fsd.md
+```
+
+### 5.3 Companion skill structure
+
+The skill file (`skills/klaviyo-api.md`) is organized to answer the questions a model will have before calling each tool:
+
+```
+# Klaviyo API Domain Skill
+
+## Auth
+## Manage Profiles
+  ### Upsert — what to know before calling
+  ### Delete — what to know before calling
+  ### Download All — what to know before calling
+## Manage Audiences — Lists
+  ### Create
+  ### Add Member — TWO PATHS, read this first
+  ### Remove Member
+  ### Delete
+## Manage Audiences — Segments
+  ### Create — rate limits
+  ### Membership — not writable, read this first
+  ### Delete
+## Segment Snapshot → List (bridge operation)
+## Known Live Issues
+```
+
+### 5.4 Integration point
+
+The companion skill is loaded at session start when Claude is used to drive the MCP server. It is the same domain knowledge that powered the HITL review step — repurposed for runtime guidance rather than pre-flight review. This is the demo beat: the skill's value doesn't end at the review screen.
+
+---
+
+## 6. Verification / Payoff Step
 
 **Sequence (against a real Klaviyo free-tier account):**
 
@@ -155,7 +227,7 @@ A runnable MCP server scoped to the Manage Profiles and Manage Audiences operati
 
 ---
 
-## 6. Non-Functional Requirements
+## 7. Non-Functional Requirements
 
 | Requirement | Spec |
 |---|---|
@@ -168,7 +240,7 @@ A runnable MCP server scoped to the Manage Profiles and Manage Audiences operati
 
 ---
 
-## 7. Open Questions
+## 8. Open Questions
 
 These were flagged at end of prior session and are not yet resolved:
 
