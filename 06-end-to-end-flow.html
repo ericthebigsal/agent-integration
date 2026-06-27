@@ -262,6 +262,129 @@
     font-style: italic;
   }
 
+  /* ── INPUT MODE TABS ── */
+  .input-mode-tabs {
+    display: flex;
+    gap: 0;
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    overflow: hidden;
+    margin-bottom: 12px;
+    width: fit-content;
+  }
+
+  .input-mode-tab {
+    padding: 8px 18px;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-muted);
+    background: var(--bg-card);
+    border: none;
+    cursor: pointer;
+    transition: all 0.15s;
+    border-right: 1.5px solid var(--border);
+  }
+
+  .input-mode-tab:last-child { border-right: none; }
+
+  .input-mode-tab.active {
+    background: var(--ink);
+    color: #fff;
+  }
+
+  .input-mode-tab:hover:not(.active) {
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  /* ── URL INPUT ── */
+  .url-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .url-input {
+    flex: 1;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--ink);
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    border-radius: 7px;
+    padding: 11px 14px;
+    outline: none;
+    transition: border-color 0.15s;
+    min-width: 0;
+  }
+
+  .url-input:focus { border-color: var(--border-focus); }
+  .url-input::placeholder { color: var(--ink-faint); }
+
+  .btn-fetch {
+    padding: 11px 20px;
+    border-radius: 7px;
+    border: 1.5px solid var(--border);
+    background: var(--bg-card);
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+
+  .btn-fetch:hover { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .btn-fetch:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .fetch-status {
+    margin-top: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    line-height: 1.5;
+  }
+
+  .fetch-status.loading { background: var(--blue-light); color: var(--blue-text); }
+  .fetch-status.success { background: var(--green-light); color: var(--green-text); }
+  .fetch-status.error   { background: var(--red-light);   color: var(--red-text); }
+
+  .url-examples {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .url-example {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
+
+  .url-example-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--ink-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .url-example-text {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint);
+  }
+
   /* ── MATCH TABLE ── */
   .match-section { margin-bottom: 24px; }
 
@@ -698,8 +821,16 @@
     </div>
 
     <div class="field-group">
-      <span class="field-label">OpenAPI Spec</span>
-      <textarea class="spec-input" spellcheck="false">{
+      <span class="field-label">Spec source</span>
+
+      <div class="input-mode-tabs">
+        <button class="input-mode-tab active" onclick="setInputMode('paste')">Paste spec</button>
+        <button class="input-mode-tab" onclick="setInputMode('url')">Load from URL</button>
+      </div>
+
+      <!-- PASTE MODE -->
+      <div id="paste-mode">
+        <textarea class="spec-input" spellcheck="false">{
   "openapi": "3.0.0",
   "info": {
     "title": "Klaviyo API",
@@ -720,7 +851,36 @@
     }
   }
 }</textarea>
-      <div class="spec-hint">Pre-filled with a Klaviyo spec excerpt for demo purposes.</div>
+        <div class="spec-hint">Accepts OpenAPI JSON/YAML or a Postman collection JSON.</div>
+      </div>
+
+      <!-- URL MODE -->
+      <div id="url-mode" style="display:none">
+        <div class="url-input-row">
+          <input type="url" class="url-input" id="spec-url"
+            placeholder="https://developer.klaviyo.com/api-docs/stable/openapi.json">
+          <button class="btn-fetch" id="fetch-btn" onclick="fetchSpec()">Fetch</button>
+        </div>
+        <div id="fetch-status" class="fetch-status" style="display:none"></div>
+        <div class="url-examples">
+          <div class="url-example">
+            <span class="url-example-tag">OpenAPI JSON</span>
+            <span class="url-example-text">https://example.com/openapi.json</span>
+          </div>
+          <div class="url-example">
+            <span class="url-example-tag">OpenAPI YAML</span>
+            <span class="url-example-text">https://example.com/openapi.yaml</span>
+          </div>
+          <div class="url-example">
+            <span class="url-example-tag">Postman</span>
+            <span class="url-example-text">https://www.getpostman.com/collections/{uid}</span>
+          </div>
+          <div class="url-example">
+            <span class="url-example-tag">$discovery</span>
+            <span class="url-example-text">https://api.example.com/$discovery</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1057,6 +1217,61 @@
 
   function toggleScenario(btn) {
     btn.classList.toggle('selected');
+  }
+
+  function setInputMode(mode) {
+    const tabs = document.querySelectorAll('.input-mode-tab');
+    tabs.forEach((t, i) => t.classList.toggle('active', (i === 0) === (mode === 'paste')));
+    document.getElementById('paste-mode').style.display = mode === 'paste' ? 'block' : 'none';
+    document.getElementById('url-mode').style.display   = mode === 'url'   ? 'block' : 'none';
+    // reset fetch status when switching
+    const status = document.getElementById('fetch-status');
+    status.style.display = 'none';
+  }
+
+  function fetchSpec() {
+    const url = document.getElementById('spec-url').value.trim();
+    const status = document.getElementById('fetch-status');
+    const btn = document.getElementById('fetch-btn');
+
+    if (!url) {
+      status.className = 'fetch-status error';
+      status.textContent = 'Paste a URL first.';
+      status.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Fetching…';
+    status.className = 'fetch-status loading';
+    status.textContent = '$ GET ' + url + '\nResolving…';
+    status.style.display = 'block';
+
+    // detect format from URL for realistic feedback
+    const lower = url.toLowerCase();
+    let fmt = 'OpenAPI JSON';
+    if (lower.includes('.yaml') || lower.includes('.yml')) fmt = 'OpenAPI YAML';
+    else if (lower.includes('postman') || lower.includes('collection')) fmt = 'Postman collection';
+    else if (lower.includes('$discovery') || lower.includes('discovery')) fmt = '$discovery document';
+
+    // simulate network + parse latency
+    setTimeout(() => {
+      // in production: fetch(url) → parse → populate textarea
+      // in prototype: simulate success and switch to paste view with a note
+      btn.disabled = false;
+      btn.textContent = 'Fetch';
+      status.className = 'fetch-status success';
+      status.textContent = '✓ ' + fmt + ' loaded — 847 operations found. Switching to preview…';
+
+      setTimeout(() => {
+        setInputMode('paste');
+        document.querySelector('textarea.spec-input').value =
+          '// Fetched from: ' + url + '\n' +
+          '// Format detected: ' + fmt + '\n' +
+          '// 847 operations — scope filter will reduce to ~10\n\n' +
+          '{\n  "openapi": "3.0.0",\n  "info": { "title": "Klaviyo API" },\n  ...\n}';
+      }, 900);
+    }, 1400);
   }
 
   function checkAcks() {
