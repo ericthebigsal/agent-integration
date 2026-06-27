@@ -1466,48 +1466,13 @@
       <div class="screen-sub">Real API calls against a Klaviyo free-tier account. All four steps confirmed in the Klaviyo dashboard.</div>
     </div>
 
-    <div class="verify-steps">
-      <div class="verify-step vs-done">
-        <div class="vs-icon">✓</div>
-        <div class="vs-body">
-          <div class="vs-title">Profile upserted</div>
-          <div class="vs-detail">test.demo@example.com created via <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">POST /api/profiles</code>. Profile ID returned.</div>
-          <div class="vs-code">→ 200 OK · id: "01J3K8..."</div>
-        </div>
-      </div>
-      <div class="verify-step vs-done">
-        <div class="vs-icon">✓</div>
-        <div class="vs-body">
-          <div class="vs-title">Added to list</div>
-          <div class="vs-detail">Profile added to "Demo List" via <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">POST /api/lists/{id}/subscribe</code>. Double opt-in disabled on test list.</div>
-          <div class="vs-code">→ 202 Accepted · membership confirmed in dashboard</div>
-        </div>
-      </div>
-      <div class="verify-step vs-done">
-        <div class="vs-icon">✓</div>
-        <div class="vs-body">
-          <div class="vs-title">Segment created</div>
-          <div class="vs-detail">"Demo Segment" created with rule: email contains "example.com". Rule matched test profile within ~30s.</div>
-          <div class="vs-code">→ 201 Created · id: "VmYgSR" · 1 member</div>
-        </div>
-      </div>
-      <div class="verify-step vs-done">
-        <div class="vs-icon">✓</div>
-        <div class="vs-body">
-          <div class="vs-title">Dashboard confirmed</div>
-          <div class="vs-detail">Profile, list membership, and segment visible in Klaviyo. All three objects match the API responses above.</div>
-          <div class="vs-code">→ Klaviyo dashboard · Profiles · Lists · Segments</div>
-        </div>
-      </div>
+    <div style="margin-bottom:20px">
+      <button class="btn-primary" onclick="runLiveDemo()" style="margin-bottom:16px">
+        Run live demo against Klaviyo
+      </button>
+      <p style="font-size:12px;color:var(--ink-muted)">Requires backend running at localhost:8000 with a real Klaviyo API key.</p>
     </div>
-
-    <div class="complete-banner">
-      <div class="complete-icon">✅</div>
-      <div class="complete-text">
-        <h3>Integration complete</h3>
-        <p>10 operations · 0 errors · Manage Profiles + Manage Audiences + Manage Segments · Klaviyo</p>
-      </div>
-    </div>
+    <div id="live-steps"></div>
   </div>
 
   <!-- SKILL EXPLANATION MODAL -->
@@ -1548,6 +1513,8 @@
 </div>
 
 <script>
+  const BACKEND_URL = 'http://localhost:8000';
+
   let current = 1;
   const total = 5;
   let genDone = false;
@@ -1593,6 +1560,70 @@
 
   function next() { goTo(current + 1); }
   function prev() { goTo(current - 1); }
+
+  async function runLiveDemo() {
+    const container = document.getElementById('live-steps');
+    if (!container) return;
+    container.innerHTML = '<p style="color:var(--ink-muted);font-size:13px">Calling Klaviyo API…</p>';
+
+    try {
+      // Step 1-2: create segment + upsert profile
+      const run = await fetch(`${BACKEND_URL}/demo/run`, { method: 'POST' });
+      if (!run.ok) throw new Error(`/demo/run returned ${run.status}`);
+      const result = await run.json();
+
+      const segmentId = result.segment_id;
+      const profileId = result.profile_id;
+
+      container.innerHTML = result.steps.map(s => {
+        const icon = s.status === 'ok' ? '✓' : '⏳';
+        const color = s.status === 'ok' ? 'var(--green)' : 'var(--amber)';
+        return `<div style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:flex-start">
+          <span style="color:${color};font-weight:600;flex-shrink:0">${icon}</span>
+          <span><strong>${s.step.replace(/_/g,' ')}</strong>${s.id ? ` — ID: <code style="font-family:IBM Plex Mono,monospace;font-size:11px">${s.id}</code>` : ''}${s.message ? `<br><span style="color:var(--ink-muted);font-size:13px">${s.message}</span>` : ''}</span>
+        </div>`;
+      }).join('');
+
+      // Step 3: countdown then poll
+      let seconds = 35;
+      const countdown = document.createElement('div');
+      countdown.style.cssText = 'padding:10px 0;color:var(--ink-muted);font-size:13px';
+      countdown.textContent = `Klaviyo computing segment membership… ${seconds}s`;
+      container.appendChild(countdown);
+
+      await new Promise(resolve => {
+        const tick = setInterval(() => {
+          seconds--;
+          countdown.textContent = `Klaviyo computing segment membership… ${seconds}s`;
+          if (seconds <= 0) { clearInterval(tick); resolve(); }
+        }, 1000);
+      });
+
+      // Step 4: poll membership
+      const poll = await fetch(`${BACKEND_URL}/demo/segment/${segmentId}/members`);
+      if (!poll.ok) throw new Error(`/demo/segment returned ${poll.status}`);
+      const membership = await poll.json();
+
+      countdown.remove();
+      const memberDiv = document.createElement('div');
+      memberDiv.style.cssText = 'padding:10px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:flex-start';
+      memberDiv.innerHTML = `
+        <span style="color:var(--green);font-weight:600;flex-shrink:0">✓</span>
+        <span><strong>confirm segment membership</strong> — ${membership.member_count} member${membership.member_count !== 1 ? 's' : ''} (no add-member call made)<br>
+        <span style="color:var(--ink-muted);font-size:13px">segment_id: <code style="font-family:IBM Plex Mono,monospace">${segmentId}</code> · profile_id: <code style="font-family:IBM Plex Mono,monospace">${profileId}</code></span></span>`;
+      container.appendChild(memberDiv);
+
+      if (membership.member_count > 0) {
+        const banner = document.createElement('div');
+        banner.style.cssText = 'margin-top:16px;padding:14px 16px;background:var(--green-light);border:1px solid var(--green);border-radius:6px;color:var(--green-text);font-weight:500';
+        banner.textContent = `✓ Cross-skill causation confirmed — profile data drove segment membership with no add-member call.`;
+        container.appendChild(banner);
+      }
+
+    } catch (err) {
+      container.innerHTML = `<p style="color:var(--red)">${err.message} — is the backend running at ${BACKEND_URL}?</p>`;
+    }
+  }
 
   function toggleScenario(btn) {
     btn.classList.toggle('selected');
