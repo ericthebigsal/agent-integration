@@ -858,18 +858,26 @@
       <div id="url-mode" style="display:none">
         <div class="url-input-row">
           <input type="url" class="url-input" id="spec-url"
-            placeholder="https://developer.klaviyo.com/api-docs/stable/openapi.json">
+            placeholder="https://raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/profiles.json">
           <button class="btn-fetch" id="fetch-btn" onclick="fetchSpec()">Fetch</button>
         </div>
         <div id="fetch-status" class="fetch-status" style="display:none"></div>
         <div class="url-examples">
           <div class="url-example">
-            <span class="url-example-tag">OpenAPI JSON</span>
-            <span class="url-example-text">https://example.com/openapi.json</span>
+            <span class="url-example-tag">Profiles</span>
+            <span class="url-example-text">raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/profiles.json</span>
           </div>
           <div class="url-example">
-            <span class="url-example-tag">OpenAPI YAML</span>
-            <span class="url-example-text">https://example.com/openapi.yaml</span>
+            <span class="url-example-tag">Lists</span>
+            <span class="url-example-text">raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/lists.json</span>
+          </div>
+          <div class="url-example">
+            <span class="url-example-tag">Segments</span>
+            <span class="url-example-text">raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/segments.json</span>
+          </div>
+          <div class="url-example">
+            <span class="url-example-tag">Data Privacy</span>
+            <span class="url-example-text">raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/data_privacy.json</span>
           </div>
           <div class="url-example">
             <span class="url-example-tag">Postman</span>
@@ -1229,7 +1237,7 @@
     status.style.display = 'none';
   }
 
-  function fetchSpec() {
+  async function fetchSpec() {
     const url = document.getElementById('spec-url').value.trim();
     const status = document.getElementById('fetch-status');
     const btn = document.getElementById('fetch-btn');
@@ -1241,37 +1249,60 @@
       return;
     }
 
-    btn.disabled = true;
-    btn.textContent = 'Fetching…';
-    status.className = 'fetch-status loading';
-    status.textContent = '$ GET ' + url + '\nResolving…';
-    status.style.display = 'block';
-
-    // detect format from URL for realistic feedback
+    // detect format label from URL
     const lower = url.toLowerCase();
     let fmt = 'OpenAPI JSON';
-    if (lower.includes('.yaml') || lower.includes('.yml')) fmt = 'OpenAPI YAML';
+    if (lower.includes('.yaml') || lower.includes('.yml'))       fmt = 'OpenAPI YAML';
     else if (lower.includes('postman') || lower.includes('collection')) fmt = 'Postman collection';
     else if (lower.includes('$discovery') || lower.includes('discovery')) fmt = '$discovery document';
 
-    // simulate network + parse latency
-    setTimeout(() => {
-      // in production: fetch(url) → parse → populate textarea
-      // in prototype: simulate success and switch to paste view with a note
-      btn.disabled = false;
-      btn.textContent = 'Fetch';
+    btn.disabled = true;
+    btn.textContent = 'Fetching…';
+    status.className = 'fetch-status loading';
+    status.textContent = 'GET ' + url;
+    status.style.display = 'block';
+
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
+
+      const text = await res.text();
+      let parsed, pathCount = 0, title = 'Unknown API', version = '';
+
+      try {
+        parsed = JSON.parse(text);
+        pathCount = parsed.paths ? Object.keys(parsed.paths).length : 0;
+        title    = parsed.info?.title   || title;
+        version  = parsed.info?.version || '';
+      } catch (_) {
+        // YAML or non-JSON — show raw excerpt
+      }
+
+      const preview = parsed
+        ? JSON.stringify({ openapi: parsed.openapi, info: parsed.info, servers: parsed.servers }, null, 2)
+            + '\n\n// ... ' + pathCount + ' paths — scope filter will select ~10'
+        : text.slice(0, 600) + '\n\n// ... (truncated)';
+
       status.className = 'fetch-status success';
-      status.textContent = '✓ ' + fmt + ' loaded — 847 operations found. Switching to preview…';
+      status.textContent = '✓ ' + fmt + ' loaded'
+        + (title ? ' · ' + title : '')
+        + (version ? ' · revision ' + version : '')
+        + (pathCount ? ' · ' + pathCount + ' paths' : '');
 
       setTimeout(() => {
         setInputMode('paste');
         document.querySelector('textarea.spec-input').value =
-          '// Fetched from: ' + url + '\n' +
-          '// Format detected: ' + fmt + '\n' +
-          '// 847 operations — scope filter will reduce to ~10\n\n' +
-          '{\n  "openapi": "3.0.0",\n  "info": { "title": "Klaviyo API" },\n  ...\n}';
-      }, 900);
-    }, 1400);
+          '// Fetched from: ' + url + '\n\n' + preview;
+      }, 600);
+
+    } catch (err) {
+      status.className = 'fetch-status error';
+      status.textContent = '✗ Fetch failed: ' + err.message
+        + '\nIf the URL requires auth, paste the spec directly instead.';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Fetch';
+    }
   }
 
   function checkAcks() {
