@@ -1,4 +1,3 @@
-import pytest
 from fastapi.testclient import TestClient
 from backend.main import app
 
@@ -12,7 +11,7 @@ def test_health():
 
 
 def test_run_demo_returns_expected_shape():
-    """Integration test — requires real KLAVIYO_PRIVATE_API_KEY in environment."""
+    """Integration test — requires KLAVIYO_PRIVATE_API_KEY in .env."""
     r = client.post("/demo/run")
     assert r.status_code == 200
     body = r.json()

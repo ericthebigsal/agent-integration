@@ -96,8 +96,11 @@ async def get_segment_members(segment_id: str):
     async with httpx.AsyncClient(timeout=10.0) as client:
         data = await _get(client, f"/api/segments/{segment_id}/profiles/")
     members = data.get("data", [])
+    has_next = bool(data.get("links", {}).get("next"))
     return {
         "segment_id": segment_id,
         "member_count": len(members),
         "members": members,
+        "truncated": has_next,
+        "note": "member_count reflects first page only — paginate via links.next for full count" if has_next else None,
     }
