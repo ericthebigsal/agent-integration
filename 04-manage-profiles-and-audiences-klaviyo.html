@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manage Profiles &amp; Audiences — Klaviyo</title>
+<style>
+  :root {
+    --ink: #1a1d1f;
+    --ink-soft: #54595e;
+    --paper: #fbfaf8;
+    --panel: #ffffff;
+    --line: #e3e1dc;
+    --line-strong: #c9c6bf;
+
+    --spec: #2f5d50;
+    --spec-bg: #eaf2ee;
+    --warn: #9a5b13;
+    --warn-bg: #fbf1e2;
+    --danger: #a3372b;
+    --danger-bg: #fcebe8;
+    --seq: #1d4f8a;
+    --seq-bg: #e6f0fa;
+
+    --mono: "IBM Plex Mono", "SF Mono", Consolas, monospace;
+    --sans: "IBM Plex Sans", "Inter", -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+  .topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 28px; border-bottom: 1px solid var(--line); background: var(--panel);
+  }
+  .topbar-left { display: flex; align-items: center; gap: 14px; }
+  .logo-mark {
+    width: 28px; height: 28px; border-radius: 6px; background: var(--ink); color: var(--paper);
+    display: flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 13px; font-weight: 700;
+  }
+  .breadcrumb { font-size: 13px; color: var(--ink-soft); display: flex; align-items: center; gap: 8px; }
+  .breadcrumb b { color: var(--ink); font-weight: 600; }
+  .breadcrumb .sep { color: var(--line-strong); }
+
+  .step-pills { display: flex; gap: 6px; font-size: 12px; }
+  .pill { padding: 5px 11px; border-radius: 100px; color: var(--ink-soft); border: 1px solid var(--line); background: var(--panel); }
+  .pill.done { color: var(--spec); border-color: var(--spec); background: var(--spec-bg); }
+  .pill.active { color: var(--ink); border-color: var(--ink); font-weight: 600; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 32px 28px 60px; }
+
+  .page-head { margin-bottom: 8px; }
+  .page-head h1 { font-size: 22px; margin: 0 0 6px; font-weight: 600; letter-spacing: -0.01em; }
+  .page-head p { margin: 0; color: var(--ink-soft); font-size: 14px; max-width: 680px; line-height: 1.5; }
+
+  .skill-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin: 20px 0 28px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--ink);
+    border-radius: 8px;
+    background: var(--panel);
+  }
+  .skill-banner .icon {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 5px;
+    padding: 3px 7px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .skill-banner .txt { font-size: 13px; color: var(--ink-soft); line-height: 1.55; }
+  .skill-banner .txt b { color: var(--ink); }
+
+  .op-card {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel);
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .op-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: #f6f4f0;
+    border-bottom: 1px solid var(--line);
+  }
+  .op-head-left { display: flex; align-items: center; gap: 12px; }
+  .op-num {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-soft);
+    width: 22px; height: 22px;
+    border: 1px solid var(--line-strong);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .op-title { font-size: 15px; font-weight: 600; }
+  .op-subtitle { font-size: 12.5px; color: var(--ink-soft); margin-top: 1px; }
+
+  .status-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11.5px; font-weight: 600;
+    padding: 5px 10px; border-radius: 100px;
+    white-space: nowrap;
+  }
+  .status-chip.spec { background: var(--spec-bg); color: var(--spec); }
+  .status-chip.seq { background: var(--seq-bg); color: var(--seq); }
+  .status-chip .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  .op-body { padding: 18px 20px; }
+
+  .call-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .http-method {
+    font-size: 11px; font-weight: 700;
+    padding: 2px 7px; border-radius: 4px;
+    flex-shrink: 0;
+  }
+  .http-method.post { background: #e3edfa; color: #1d4f8a; }
+  .http-method.get { background: #e9f0e6; color: #3c6b2f; }
+  .call-path { color: var(--ink); word-break: break-all; }
+  .call-note { font-family: var(--sans); font-size: 12px; color: var(--ink-soft); }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 130px 1fr;
+    gap: 7px 14px;
+    font-size: 13px;
+    margin-bottom: 14px;
+  }
+  .detail-grid dt { color: var(--ink-soft); }
+  .detail-grid dd { margin: 0; color: var(--ink); }
+  .detail-grid code {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: #f3f1ec;
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  .gotcha {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 11px 14px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    line-height: 1.5;
+    margin-top: 4px;
+  }
+  .gotcha.warn { background: var(--warn-bg); color: #6e4310; }
+  .gotcha.danger { background: var(--danger-bg); color: #7a2a20; }
+  .gotcha .gicon { font-weight: 700; flex-shrink: 0; }
+  .gotcha b { font-weight: 700; }
+  .gotcha + .gotcha { margin-top: 8px; }
+
+  .seq-steps {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .seq-step {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    background: #f3f1ec;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    padding: 7px 11px;
+  }
+  .seq-step .step-label {
+    display: block;
+    font-family: var(--sans);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    margin-bottom: 3px;
+  }
+  .seq-arrow { color: var(--line-strong); font-size: 16px; }
+
+  .source-line {
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .source-line code { font-family: var(--mono); background: none; padding: 0; }
+
+  .section-divider {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 38px 0 18px;
+  }
+  .section-divider h2 {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ink-soft);
+    margin: 0;
+    white-space: nowrap;
+  }
+  .section-divider .line { flex: 1; height: 1px; background: var(--line); }
+
+  .object-tag {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 3px 8px;
+    border-radius: 5px;
+    margin-left: 8px;
+  }
+  .object-tag.static { background: #e6f0fa; color: #1d4f8a; }
+  .object-tag.dynamic { background: #f1ecfa; color: #5d3a9a; }
+
+  .status-chip.na { background: var(--na-bg, #ececf2); color: var(--na, #6b6f8a); }
+  :root { --na: #6b6f8a; --na-bg: #ececf2; }
+
+  .op-card.na-card .op-body { background: repeating-linear-gradient(135deg, #fff 0px, #fff 7px, #f7f6f3 7px, #f7f6f3 14px); }
+
+  .na-explainer {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 11px 14px;
+    border-radius: 8px;
+    background: var(--na-bg);
+    color: #4d4f63;
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+  .na-explainer b { color: var(--ink); }
+
+  .bridge-card {
+    border: 1px dashed var(--line-strong);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    background: #fdfcfa;
+  }
+  .bridge-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .bridge-icon {
+    font-family: var(--mono); font-size: 11px; font-weight: 700;
+    background: #f1ecfa; color: #5d3a9a;
+    border-radius: 5px; padding: 3px 7px;
+  }
+  .bridge-title { font-size: 14px; font-weight: 600; }
+  .bridge-flow {
+    display: flex; align-items: center; gap: 10px;
+    font-family: var(--mono); font-size: 12.5px;
+    margin: 10px 0;
+  }
+  .bridge-node {
+    background: #fff; border: 1px solid var(--line); border-radius: 7px;
+    padding: 7px 12px;
+  }
+  .bridge-node.dynamic { border-color: #5d3a9a; color: #5d3a9a; }
+  .bridge-node.static { border-color: #1d4f8a; color: #1d4f8a; }
+  .bridge-desc { font-size: 12.5px; color: var(--ink-soft); line-height: 1.5; margin-top: 4px; }
+
+  .footer-bar {
+    margin-top: 8px;
+    padding: 16px 0 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .footer-status { font-size: 13px; color: var(--ink-soft); }
+  .footer-status b { color: var(--ink); }
+  .btn {
+    font-size: 13.5px; font-weight: 600;
+    padding: 10px 18px; border-radius: 8px;
+    border: 1px solid var(--line-strong);
+    background: #fff; color: var(--ink);
+    cursor: pointer; font-family: var(--sans);
+  }
+  .btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .btn:hover { opacity: 0.85; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo-mark">AI</div>
+    <div class="breadcrumb">
+      <b>Klaviyo</b> <span class="sep">/</span> Manage Profiles &amp; Audiences
+    </div>
+  </div>
+  <div class="step-pills">
+    <div class="pill done">1 · Discover spec</div>
+    <div class="pill done">2 · Apply skill</div>
+    <div class="pill active">3 · Review</div>
+    <div class="pill">4 · Generate MCP</div>
+    <div class="pill">5 · Verify</div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="page-head">
+    <h1>Manage Profiles &amp; Audiences — mapped to Klaviyo's API</h1>
+    <p>Two skills, one spec. "Manage Profiles" and "Manage Audiences" each carry their own expected shapes and failure modes — here's what they found when matched against Klaviyo's real OpenAPI spec.</p>
+  </div>
+
+  <div class="skill-banner">
+    <span class="icon">SKILL</span>
+    <div class="txt">
+      <b>Manage Profiles</b> expects three operations — upsert, delete, and bulk read — each with a known shape and known failure modes. Below, every endpoint, parameter, and rate limit came directly from Klaviyo's published OpenAPI spec. Nothing here was inferred from prose. The warnings are the skill's prior knowledge of where integrations like this tend to break.
+    </div>
+  </div>
+
+  <!-- OP 1: Upsert -->
+  <div class="op-card">
+    <div class="op-head">
+      <div class="op-head-left">
+        <span class="op-num">1</span>
+        <div>
+          <div class="op-title">Upsert a profile</div>
+          <div class="op-subtitle">Create if new, update if it already exists</div>
+        </div>
+      </div>
+      <span class="status-chip spec"><span class="dot"></span>1 call · from spec</span>
+    </div>
+    <div class="op-body">
+      <div class="call-row">
+        <span class="http-method post">POST</span>
+        <span class="call-path">https://a.klaviyo.com/api/profiles</span>
+      </div>
+      <dl class="detail-grid">
+        <dt>Auth</dt>
+        <dd><code>Authorization: Klaviyo-API-Key {key}</code></dd>
+        <dt>Body format</dt>
+        <dd>JSON:API — <code>data.attributes.email</code> + custom properties</dd>
+        <dt>Identity key</dt>
+        <dd>email, phone_number, or external_id</dd>
+      </dl>
+      <div class="gotcha warn">
+        <span class="gicon">!</span>
+        <span><b>Worth knowing:</b> there's no separate "create" vs "update" call — sending the same email twice updates the existing profile rather than erroring or duplicating. If your integration assumes create-fails-on-duplicate, it'll behave differently than expected here.</span>
+      </div>
+      <div class="source-line">Source: <code>developers.klaviyo.com/en/reference/create_profile</code> — OpenAPI spec</div>
+    </div>
+  </div>
+
+  <!-- OP 2: Delete -->
+  <div class="op-card">
+    <div class="op-head">
+      <div class="op-head-left">
+        <span class="op-num">2</span>
+        <div>
+          <div class="op-title">Delete a profile</div>
+          <div class="op-subtitle">Permanently erase one profile's data</div>
+        </div>
+      </div>
+      <span class="status-chip spec"><span class="dot"></span>1 call · from spec</span>
+    </div>
+    <div class="op-body">
+      <div class="call-row">
+        <span class="http-method post">POST</span>
+        <span class="call-path">https://a.klaviyo.com/api/data-privacy-deletion-jobs</span>
+      </div>
+      <dl class="detail-grid">
+        <dt>Identifier</dt>
+        <dd>exactly one of: <code>email</code>, <code>phone_number</code>, <code>id</code> — sending more than one returns a 400</dd>
+        <dt>Execution</dt>
+        <dd>Asynchronous — completes after the request returns</dd>
+        <dt>Rate limit</dt>
+        <dd><code>burst: 3/s</code> · <code>steady: 60/m</code> — far lower than the profile-write limit</dd>
+      </dl>
+      <div class="gotcha danger">
+        <span class="gicon">⚠</span>
+        <span><b>Irreversible:</b> once a profile is deleted this way, it cannot be restored. Klaviyo keeps a compliance record of the contact info separately, but the profile itself is gone for good.</span>
+      </div>
+      <div class="gotcha warn">
+        <span class="gicon">!</span>
+        <span><b>Known live issue (Apr 2026):</b> this endpoint has intermittently returned 401 errors immediately after API revision updates, even with a valid key that works fine on other endpoints. If delete calls start failing with 401 right after a revision bump, check scopes before assuming the key is bad.</span>
+      </div>
+      <div class="source-line">Source: <code>developers.klaviyo.com/en/reference/request_profile_deletion</code> — OpenAPI spec, cross-checked against Klaviyo Developer Community thread (Apr 15 2026)</div>
+    </div>
+  </div>
+
+  <!-- OP 3: Download all -->
+  <div class="op-card">
+    <div class="op-head">
+      <div class="op-head-left">
+        <span class="op-num">3</span>
+        <div>
+          <div class="op-title">Download all profiles</div>
+          <div class="op-subtitle">Export every profile in the account</div>
+        </div>
+      </div>
+      <span class="status-chip seq"><span class="dot"></span>loop required · no bulk export endpoint</span>
+    </div>
+    <div class="op-body">
+      <div class="seq-steps">
+        <div class="seq-step"><span class="step-label">Call</span>GET /api/profiles</div>
+        <span class="seq-arrow">→</span>
+        <div class="seq-step"><span class="step-label">If more pages</span>follow <code style="background:none;padding:0">next</code> cursor</div>
+        <span class="seq-arrow">→</span>
+        <div class="seq-step"><span class="step-label">Repeat</span>until cursor is empty</div>
+      </div>
+      <dl class="detail-grid">
+        <dt>Pagination</dt>
+        <dd>Cursor-based — follow the <code>links.next</code> URL in each response</dd>
+        <dt>Page size</dt>
+        <dd>Configurable via <code>page[size]</code>, capped per endpoint limits</dd>
+      </dl>
+      <div class="gotcha warn">
+        <span class="gicon">!</span>
+        <span><b>There's no single "export everything" call.</b> Klaviyo's dashboard has a one-profile-at-a-time export button for GDPR requests, but the API only exposes the paginated list endpoint — "download all" means looping this call to exhaustion, not one request.</span>
+      </div>
+      <div class="source-line">Source: <code>developers.klaviyo.com/en/reference/get_profiles</code> — OpenAPI spec. Confirmed no bulk-export endpoint exists in current API surface (checked against full reference, Jun 2026).</div>
+    </div>
+  </div>
+
+  <div class="section-divider">
+    <h2>Manage Audiences</h2>
+    <div class="line"></div>
+  </div>
+
+  <div class="skill-banner">
+    <span class="icon">SKILL</span>
+    <div class="txt">
+      <b>Manage Audiences</b> knows Klaviyo splits this into two genuinely different object types — static <b>Lists</b> and dynamic <b>Segments</b> — with different CRUD support and different traps. Confusing the two costs real time: there are also two different "add to list" endpoints with different consent behavior, confirmed by Klaviyo's own developer community as a recurring source of confusion.
+    </div>
+  </div>
+
+  <!-- AUDIENCE OP 1: Create list -->
+  <div class="op-card">
+    <div class="op-head">
+      <div class="op-head-left">
+        <span class="op-num">4</span>
+        <div>
+          <div class="op-title">Create an audience <span class="object-tag static">List · static</span></div>
+          <div class="op-subtitle">New manually-curated audience container</div>
+        </div>
+      </div>
+      <span class="status-chip spec"><span class="dot"></span>1 call · from spec</span>
+    </div>
+    <div class="op-body">
+      <div class="call-row">
+        <span class="http-method post">POST</span>
+        <span class="call-path">https://a.klaviyo.com/api/lists</span>
+      </div>
+      <dl class="detail-grid">
+        <dt>Membership</dt>
+        <dd>Manual — grows only when profiles are explicitly added</dd>
+      </dl>
+      <div class="source-line">Source: <code>developers.klaviyo.com/en/v1-2/reference/create-list</code> — OpenAPI spec</div>
+    </div>
+  </div>
+
+  <!-- AUDIENCE OP 2: Add member to list (the trap) -->
+  <div class="op-card">
+    <div class="op-head">
+      <div class="op-head-left">
+        <span class="op-num">5</span>
+        <div>
+          <div class="op-title">Add a profile to a list <span class="object-tag static">List · static</span></div>
+          <div class="op-subtitle">Two endpoints exist — they behave differently</div>
+        </div>
+      </div>
+      <span class="status-chip spec"><span class="dot"></span>2 candidate endpoints · from spec</span>
+    </div>
+    <div class="op-body">
+      <div class="call-row">
+        <span class="http-method post">POST</span>
+        <span class="call-path">/api/lists/{id}/relationships/profiles</span>
+        <span class="call-note">— adds directly, no consent change</span>
+      </div>
+      <div class="call-row">
+        <span class="http-method post">POST</span>
+        <span class="call-path">/api/lists/{id}/subscribe</span>
+        <span class="call-note">— routes through opt-in settings</span>
+      </div>
+      <dl class="detail-grid">
+        <dt>Requires</dt>
+        <dd>A profile ID, not an email — if you only have an email, call Get Profiles first to resolve it</dd>
+      </dl>
+      <div class="gotcha danger">
+        <span class="gicon">⚠</span>
+        <span><b>This is the real trap.</b> Klaviyo's own docs recommend using Subscribe Profiles when you're trying to give a profile marketing consent. But if double opt-in is enabled — Klaviyo's default — Subscribe Profiles will return a successful, empty response and add no one until they confirm. The relationships endpoint adds them immediately but does <i>not</i> grant marketing consent. Picking the wrong one looks identical in the response and fails silently.</span>
+      </div>
+      <div class="gotcha warn">
+        <span class="gicon">!</span>
+        <span><b>Adding a brand-new contact</b> (not yet a profile) to a list is a 2-step sequence: create-or-find the profile first, then add by ID — there's no single call that does both unless you use the separate Bulk Profile Import API.</span>
+      </div>
+      <div class="source-line">Source: <code>developers.klaviyo.com/en/reference/add_profiles_to_list</code>, <code>.../subscribe_profiles</code> — OpenAPI spec, cross-checked against Klaviyo Developer Community threads</div>
+    </div>
+  </div>
+
+  <!-- AUDIENCE OP 3: Remove from list -->
+  <div class="op-card">
+    <div class="op-head">
+      <div class="op-head-left">
+        <span class="op-num">6</span>
+        <div>
+          <div class="op-title">Remove a profile from a list <span class="object-tag static">List · static</span></div>
+          <div class="op-subtitle">Membership change only — not a consent change</div>
+        </div>
+      </div>
+      <span class="status-chip spec"><span class="dot"></span>1 call · from spec</span>
+    </div>
+    <div class="op-body">
+      <div class="call-row">
+        <span class="http-method post" style="background:#fcebe8;color:#7a2a20">DELETE</span>
+        <span class="call-path">https://a.klaviyo.com/api/lists/{id}/relationships/profiles</span>
+      </div>
+      <dl class="detail-grid">
+        <dt>Limit</dt>
+        <dd>Max 1000 profile IDs per call</dd>
+      </dl>
+      <div class="gotcha warn">
+        <span class="gicon">!</span>
+        <span>Removing from a list does <b>not</b> change the profile's subscription/consent status — a profile can be off every list and still technically subscribed. Use the Unsubscribe endpoint if the goal is to stop marketing to them, not just tidy the list.</span>
+      </div>
+      <div class="source-line">Source: <code>developers.klaviyo.com/en/reference/remove_profiles_from_list</code> — OpenAPI spec</div>
+    </div>
+  </div>
+
+  <!-- AUDIENCE OP 4: Create segment -->
+  <div class="op-card">
+    <div class="op-head">
+      <div class="op-head-left">
+        <span class="op-num">7</span>
+        <div>
+          <div class="op-title">Create an audience <span class="object-tag dynamic">Segment · dynamic</span></div>
+          <div class="op-subtitle">Define a rule-based audience</div>
+        </div>
+      </div>
+      <span class="status-chip spec"><span class="dot"></span>1 call · from spec</span>
+    </div>
+    <div class="op-body">
+      <div class="call-row">
+        <span class="http-method post">POST</span>
+        <span class="call-path">https://a.klaviyo.com/api/segments</span>
+      </div>
+      <dl class="detail-grid">
+        <dt>Body</dt>
+        <dd>Condition groups (OR within a group, AND across groups) — profile attributes, events, or list membership</dd>
+        <dt>Rate limit</dt>
+        <dd><code>burst: 1/s</code> · <code>steady: 15/m</code> · <code>daily: 100/d</code></dd>
+      </dl>
+      <div class="gotcha warn">
+        <span class="gicon">!</span>
+        <span><b>Daily cap is the sharpest limit in this whole spec</b> — 100 segment creations per day, far tighter than anything on the Profiles or Lists side. A script that creates segments in a loop will hit this fast and the failure won't look like a typical rate-limit error pattern until you've burned most of the day's quota.</span>
+      </div>
+      <div class="gotcha warn">
+        <span class="gicon">!</span>
+        <span>This endpoint didn't exist for years — segment creation was dashboard-only, and Klaviyo's own community shows repeated requests for it before it shipped. Worth confirming you're not reading a cached/older doc that still says "not supported."</span>
+      </div>
+      <div class="source-line">Source: <code>developers.klaviyo.com/en/reference/create_segment</code>, <code>.../segments_api_overview</code> — OpenAPI spec</div>
+    </div>
+  </div>
+
+  <!-- AUDIENCE OP 5: NOT APPLICABLE - segment membership -->
+  <div class="op-card na-card">
+    <div class="op-head">
+      <div class="op-head-left">
+        <span class="op-num">—</span>
+        <div>
+          <div class="op-title" style="color:#6b6f8a">Add/remove a member <span class="object-tag dynamic">Segment · dynamic</span></div>
+          <div class="op-subtitle">There's no endpoint for this — by design</div>
+        </div>
+      </div>
+      <span class="status-chip na"><span class="dot"></span>not applicable</span>
+    </div>
+    <div class="op-body">
+      <div class="na-explainer">
+        <span style="font-weight:700">—</span>
+        <span><b>This isn't a missing feature, it's how segments work.</b> Membership is computed continuously from the segment's rule definition — a profile is in or out based on whether it currently matches the conditions, not because anyone called an "add" endpoint. To change who's in a segment, you change the rule (Update Segment), not the membership directly. Looking for a literal add-member call here would be searching for something that was never meant to exist.</span>
+      </div>
+      <div class="source-line">Confirmed against: <code>developers.klaviyo.com/en/reference/segments_api_overview</code> and Klaviyo Help Center — segments "update in close to real time" as conditions are met/unmet</div>
+    </div>
+  </div>
+
+  <!-- BRIDGE -->
+  <div class="bridge-card">
+    <div class="bridge-head">
+      <span class="bridge-icon">BRIDGE</span>
+      <span class="bridge-title">Need a fixed copy of who's in a segment right now?</span>
+    </div>
+    <div class="bridge-flow">
+      <span class="bridge-node dynamic">Segment (dynamic)</span>
+      <span class="seq-arrow">→</span>
+      <span class="bridge-node">Snapshot</span>
+      <span class="seq-arrow">→</span>
+      <span class="bridge-node static">New List (static)</span>
+    </div>
+    <div class="bridge-desc">A segment snapshot captures everyone currently matching the segment's rules into a brand-new static list. The original segment keeps growing and shrinking dynamically; the snapshot list is frozen the moment it's taken. This is the closest thing to "set membership manually" for a segment — you're not editing the segment, you're forking a moment of it into a List.</div>
+  </div>
+
+  <div class="footer-bar">
+    <div class="footer-status">All <b>7 operations</b> resolved against the real spec, plus <b>1 confirmed not-applicable</b>. No flags pending review.</div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn">Back</button>
+      <button class="btn primary">Generate MCP server →</button>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

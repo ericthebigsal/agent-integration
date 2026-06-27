@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review extraction — Klaviyo</title>
+<style>
+  :root {
+    --ink: #1a1d1f;
+    --ink-soft: #54595e;
+    --paper: #fbfaf8;
+    --panel: #ffffff;
+    --line: #e3e1dc;
+    --line-strong: #c9c6bf;
+    --spec: #2f5d50;       /* from a real document: deep green */
+    --spec-bg: #eaf2ee;
+    --inferred: #9a5b13;   /* LLM-guessed: amber/rust */
+    --inferred-bg: #fbf1e2;
+    --danger: #a3372b;
+    --danger-bg: #fcebe8;
+    --mono: "IBM Plex Mono", "SF Mono", Consolas, monospace;
+    --sans: "IBM Plex Sans", "Inter", -apple-system, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--line);
+    background: var(--panel);
+  }
+  .topbar-left { display: flex; align-items: center; gap: 14px; }
+  .logo-mark {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    background: var(--ink);
+    color: var(--paper);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .breadcrumb {
+    font-size: 13px;
+    color: var(--ink-soft);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .breadcrumb b { color: var(--ink); font-weight: 600; }
+  .breadcrumb .sep { color: var(--line-strong); }
+
+  .step-pills {
+    display: flex;
+    gap: 6px;
+    font-size: 12px;
+  }
+  .pill {
+    padding: 5px 11px;
+    border-radius: 100px;
+    color: var(--ink-soft);
+    border: 1px solid var(--line);
+    background: var(--panel);
+  }
+  .pill.done { color: var(--spec); border-color: var(--spec); background: var(--spec-bg); }
+  .pill.active { color: var(--ink); border-color: var(--ink); font-weight: 600; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 28px 100px; }
+
+  .page-head { margin-bottom: 26px; }
+  .page-head h1 {
+    font-size: 22px;
+    margin: 0 0 6px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .page-head p {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 14px;
+    max-width: 640px;
+    line-height: 1.5;
+  }
+
+  .summary-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .stat {
+    border: 1px solid var(--line);
+    background: var(--panel);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .stat .num { font-family: var(--mono); font-size: 22px; font-weight: 600; line-height: 1; }
+  .stat .label { font-size: 12px; color: var(--ink-soft); margin-top: 5px; }
+  .stat.flagged .num { color: var(--inferred); }
+  .stat.confirmed .num { color: var(--spec); }
+
+  .legend {
+    display: flex;
+    gap: 18px;
+    align-items: center;
+    margin-bottom: 18px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 7px; }
+  .legend-swatch { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+
+  .group {
+    margin-bottom: 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--panel);
+    overflow: hidden;
+  }
+  .group-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 18px;
+    background: #f6f4f0;
+    border-bottom: 1px solid var(--line);
+  }
+  .group-head-left { display: flex; align-items: center; gap: 10px; }
+  .method {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: 0.02em;
+  }
+  .method.post { background: #e3edfa; color: #1d4f8a; }
+  .method.get { background: #e9f0e6; color: #3c6b2f; }
+  .path {
+    font-family: var(--mono);
+    font-size: 13.5px;
+    color: var(--ink);
+  }
+  .endpoint-purpose {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+  }
+
+  .field-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .field-table th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+    font-weight: 600;
+    padding: 9px 18px 8px;
+    border-bottom: 1px solid var(--line);
+  }
+  .field-table td {
+    padding: 11px 18px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+    font-size: 13.5px;
+  }
+  .field-table tr:last-child td { border-bottom: none; }
+  .field-table tr.flag-row { background: var(--inferred-bg); }
+
+  .field-name {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .field-value {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink);
+    word-break: break-all;
+  }
+  .field-value input {
+    font-family: var(--mono);
+    font-size: 13px;
+    border: 1px solid var(--line-strong);
+    border-radius: 5px;
+    padding: 5px 8px;
+    width: 100%;
+    background: #fff;
+    color: var(--ink);
+  }
+  .field-value input:focus { outline: 2px solid var(--ink); outline-offset: 1px; }
+
+  .source-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 4px 9px;
+    border-radius: 100px;
+    white-space: nowrap;
+  }
+  .source-tag.spec { background: var(--spec-bg); color: var(--spec); }
+  .source-tag.inferred { background: var(--inferred-bg); color: var(--inferred); }
+  .source-tag .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+  .confidence {
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .confidence.low { color: var(--danger); font-weight: 600; }
+
+  .row-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .btn-tiny {
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--line-strong);
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+  .btn-tiny:hover { border-color: var(--ink); }
+  .btn-tiny.accept { color: var(--spec); border-color: var(--spec); }
+  .btn-tiny.accept.is-accepted { background: var(--spec); color: #fff; }
+
+  .why-link {
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    text-decoration: underline;
+    text-decoration-color: var(--line-strong);
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: var(--sans);
+  }
+  .why-link:hover { color: var(--ink); }
+
+  .why-panel {
+    display: none;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    background: #f6f4f0;
+    border-radius: 6px;
+    padding: 9px 11px;
+    margin-top: 7px;
+    line-height: 1.5;
+    border-left: 2px solid var(--inferred);
+  }
+  .why-panel.open { display: block; }
+  .why-panel code {
+    background: #fff;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    border: 1px solid var(--line);
+  }
+
+  .footer-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: var(--panel);
+    border-top: 1px solid var(--line);
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .footer-status {
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .footer-status b { color: var(--ink); }
+  .footer-actions { display: flex; gap: 10px; }
+  .btn {
+    font-size: 13.5px;
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 8px;
+    border: 1px solid var(--line-strong);
+    background: #fff;
+    color: var(--ink);
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+  .btn.primary {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .btn.primary:disabled {
+    background: #d8d5cf;
+    color: #9a978f;
+    border-color: #d8d5cf;
+    cursor: not-allowed;
+  }
+  .btn:hover:not(:disabled) { opacity: 0.85; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo-mark">AI</div>
+    <div class="breadcrumb">
+      <b>Klaviyo</b> <span class="sep">/</span> Owned Channel · Email
+    </div>
+  </div>
+  <div class="step-pills">
+    <div class="pill done">1 · Discover</div>
+    <div class="pill done">2 · Extract</div>
+    <div class="pill active">3 · Review</div>
+    <div class="pill">4 · Generate MCP</div>
+    <div class="pill">5 · Verify</div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="page-head">
+    <h1>Review what was extracted</h1>
+    <p>We found an OpenAPI spec for most of this, but a few values had no direct match and were inferred from prose docs. Check those before generating the integration — wrong base URLs and endpoints are the most common way this fails.</p>
+  </div>
+
+  <div class="summary-row">
+    <div class="stat">
+      <div class="num">3</div>
+      <div class="label">Endpoints selected</div>
+    </div>
+    <div class="stat confirmed">
+      <div class="num">11</div>
+      <div class="label">From OpenAPI spec</div>
+    </div>
+    <div class="stat flagged">
+      <div class="num">2</div>
+      <div class="label">Inferred — needs review</div>
+    </div>
+    <div class="stat">
+      <div class="num">0 / 2</div>
+      <div class="label">Flags resolved</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <div class="legend-item">
+      <span class="legend-swatch" style="background:var(--spec)"></span>
+      From spec — found verbatim in Klaviyo's OpenAPI document
+    </div>
+    <div class="legend-item">
+      <span class="legend-swatch" style="background:var(--inferred)"></span>
+      Inferred — no spec match, guessed from prose documentation
+    </div>
+  </div>
+
+  <!-- Endpoint 1: clean, all from spec -->
+  <div class="group">
+    <div class="group-head">
+      <div class="group-head-left">
+        <span class="method post">POST</span>
+        <span class="path">/api/profiles</span>
+        <span class="endpoint-purpose">— Create or update a subscriber profile</span>
+      </div>
+      <span class="source-tag spec"><span class="dot"></span>Spec match</span>
+    </div>
+    <table class="field-table">
+      <tr>
+        <th style="width:18%">Field</th>
+        <th style="width:32%">Value</th>
+        <th style="width:14%">Source</th>
+        <th style="width:14%">Confidence</th>
+        <th style="width:22%">Action</th>
+      </tr>
+      <tr>
+        <td class="field-name">base_url</td>
+        <td class="field-value">https://a.klaviyo.com</td>
+        <td><span class="source-tag spec"><span class="dot"></span>spec</span></td>
+        <td class="confidence">high</td>
+        <td><div class="row-actions"><button class="btn-tiny accept is-accepted">✓ Accepted</button></div></td>
+      </tr>
+      <tr>
+        <td class="field-name">auth</td>
+        <td class="field-value">Authorization: Klaviyo-API-Key {key}</td>
+        <td><span class="source-tag spec"><span class="dot"></span>spec</span></td>
+        <td class="confidence">high</td>
+        <td><div class="row-actions"><button class="btn-tiny accept is-accepted">✓ Accepted</button></div></td>
+      </tr>
+      <tr>
+        <td class="field-name">required: email</td>
+        <td class="field-value">string, in data.attributes.email</td>
+        <td><span class="source-tag spec"><span class="dot"></span>spec</span></td>
+        <td class="confidence">high</td>
+        <td><div class="row-actions"><button class="btn-tiny accept is-accepted">✓ Accepted</button></div></td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Endpoint 2: has flags -->
+  <div class="group">
+    <div class="group-head">
+      <div class="group-head-left">
+        <span class="method post">POST</span>
+        <span class="path">/api/events</span>
+        <span class="endpoint-purpose">— Track a custom event for a profile</span>
+      </div>
+      <span class="source-tag inferred"><span class="dot"></span>1 field inferred</span>
+    </div>
+    <table class="field-table">
+      <tr>
+        <th style="width:18%">Field</th>
+        <th style="width:32%">Value</th>
+        <th style="width:14%">Source</th>
+        <th style="width:14%">Confidence</th>
+        <th style="width:22%">Action</th>
+      </tr>
+      <tr>
+        <td class="field-name">base_url</td>
+        <td class="field-value">https://a.klaviyo.com</td>
+        <td><span class="source-tag spec"><span class="dot"></span>spec</span></td>
+        <td class="confidence">high</td>
+        <td><div class="row-actions"><button class="btn-tiny accept is-accepted">✓ Accepted</button></div></td>
+      </tr>
+      <tr class="flag-row">
+        <td class="field-name">rate_limit</td>
+        <td class="field-value">
+          <input type="text" value="75 req / second (burst)">
+          <div class="why-panel open">
+            <b>Why this was inferred:</b> the OpenAPI spec doesn't declare rate limits in its schema. This number came from a sentence in the "Rate limiting" prose doc page, which described burst vs. steady-state limits separately and didn't map cleanly to one field. Worth opening the source page to confirm which number applies to this endpoint specifically.
+            <br><br>Source: <code>developers.klaviyo.com/en/docs/rate_limits</code>
+          </div>
+        </td>
+        <td><span class="source-tag inferred"><span class="dot"></span>inferred</span></td>
+        <td class="confidence low">low</td>
+        <td>
+          <div class="row-actions">
+            <button class="btn-tiny accept">Accept</button>
+            <button class="btn-tiny">Edit</button>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="field-name">required: metric.name</td>
+        <td class="field-value">string</td>
+        <td><span class="source-tag spec"><span class="dot"></span>spec</span></td>
+        <td class="confidence">high</td>
+        <td><div class="row-actions"><button class="btn-tiny accept is-accepted">✓ Accepted</button></div></td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Endpoint 3: the dangerous one -->
+  <div class="group">
+    <div class="group-head">
+      <div class="group-head-left">
+        <span class="method get">GET</span>
+        <span class="path">/api/lists/{id}/relationships/profiles</span>
+        <span class="endpoint-purpose">— Confirm a profile was added to a list</span>
+      </div>
+      <span class="source-tag inferred"><span class="dot"></span>1 field inferred</span>
+    </div>
+    <table class="field-table">
+      <tr>
+        <th style="width:18%">Field</th>
+        <th style="width:32%">Value</th>
+        <th style="width:14%">Source</th>
+        <th style="width:14%">Confidence</th>
+        <th style="width:22%">Action</th>
+      </tr>
+      <tr class="flag-row">
+        <td class="field-name">path</td>
+        <td class="field-value">
+          <input type="text" value="/api/lists/{id}/relationships/profiles">
+          <div class="why-panel open">
+            <b>Why this was inferred:</b> this exact path wasn't present in the OpenAPI spec we pulled — the spec only documents the v2025-07-15 revision, and this relationship endpoint appears to belong to an older API revision referenced in a migration guide. The path shown is reconstructed from that prose guide, not confirmed against a machine-readable schema. This is exactly the kind of guess worth double-checking before it ships.
+            <br><br>Source: <code>developers.klaviyo.com/en/docs/api_versioning_and_deprecation</code> (prose, not spec)
+          </div>
+        </td>
+        <td><span class="source-tag inferred"><span class="dot"></span>inferred</span></td>
+        <td class="confidence low">low</td>
+        <td>
+          <div class="row-actions">
+            <button class="btn-tiny accept">Accept</button>
+            <button class="btn-tiny">Edit</button>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td class="field-name">base_url</td>
+        <td class="field-value">https://a.klaviyo.com</td>
+        <td><span class="source-tag spec"><span class="dot"></span>spec</span></td>
+        <td class="confidence">high</td>
+        <td><div class="row-actions"><button class="btn-tiny accept is-accepted">✓ Accepted</button></div></td>
+      </tr>
+    </table>
+  </div>
+
+</div>
+
+<div class="footer-bar">
+  <div class="footer-status">
+    <b>2 flagged fields</b> still need review before you generate the MCP server.
+  </div>
+  <div class="footer-actions">
+    <button class="btn">Back to extraction</button>
+    <button class="btn primary" disabled title="Resolve flagged fields first">Generate MCP server →</button>
+  </div>
+</div>
+
+</body>
+</html>
