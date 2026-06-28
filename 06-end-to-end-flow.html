@@ -1124,18 +1124,17 @@
     </div>
 
     <div class="field-group">
-      <span class="field-label">Scenario</span>
+      <span class="field-label">Platform</span>
       <div class="toggle-group">
-        <button class="toggle-btn selected" onclick="toggleScenario(this)">Manage Profiles</button>
-        <button class="toggle-btn selected" onclick="toggleScenario(this)">Manage Audiences</button>
-        <button class="toggle-btn selected" onclick="toggleScenario(this)">Manage Segments</button>
+        <button class="platform-btn toggle-btn selected" data-platform="klaviyo" onclick="switchPlatform('klaviyo')">Klaviyo</button>
+        <button class="platform-btn toggle-btn" data-platform="hubspot" onclick="switchPlatform('hubspot')">HubSpot</button>
       </div>
     </div>
 
     <div class="field-group">
-      <span class="field-label">Platform</span>
-      <div class="toggle-group">
-        <button class="toggle-btn selected">Klaviyo</button>
+      <span class="field-label">Scenario</span>
+      <div class="toggle-group" id="scenario-toggle">
+        <!-- rendered by renderScenarioButtons() on load and on platform switch -->
       </div>
     </div>
 
@@ -1181,31 +1180,8 @@
           <button class="btn-fetch" id="fetch-btn" onclick="fetchSpec()">Fetch</button>
         </div>
         <div id="fetch-status" class="fetch-status" style="display:none"></div>
-        <div class="url-examples">
-          <div class="url-example">
-            <span class="url-example-tag">Profiles</span>
-            <span class="url-example-text">raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/profiles.json</span>
-          </div>
-          <div class="url-example">
-            <span class="url-example-tag">Lists</span>
-            <span class="url-example-text">raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/lists.json</span>
-          </div>
-          <div class="url-example">
-            <span class="url-example-tag">Segments</span>
-            <span class="url-example-text">raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/segments.json</span>
-          </div>
-          <div class="url-example">
-            <span class="url-example-tag">Data Privacy</span>
-            <span class="url-example-text">raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/data_privacy.json</span>
-          </div>
-          <div class="url-example">
-            <span class="url-example-tag">Postman</span>
-            <span class="url-example-text">https://www.getpostman.com/collections/{uid}</span>
-          </div>
-          <div class="url-example">
-            <span class="url-example-tag">$discovery</span>
-            <span class="url-example-text">https://api.example.com/$discovery</span>
-          </div>
+        <div class="url-examples" id="url-examples">
+          <!-- rendered by renderUrlExamples() on load and on platform switch -->
         </div>
 
         <!-- FILE PICKER (shown after GitHub repo discovery) -->
@@ -1371,61 +1347,12 @@
       <div class="screen-sub">All endpoints are spec-confirmed — nothing was inferred or guessed. The warnings below come from the domain skill, not the spec. Acknowledge the two highest-severity items to proceed.</div>
     </div>
 
-    <div class="warning-list">
-      <div class="warning-item sev-red">
-        <div class="warn-icon">🔴</div>
-        <div class="warn-body">
-          <div class="warn-title">Profile delete is async and irreversible</div>
-          <div class="warn-desc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px">POST /api/data-privacy-deletion-jobs</code> submits a request — the profile is not gone immediately. No soft-delete, no undo. Rate limit is 60/min steady, far below profile writes. A 401 immediately after an API revision bump is not a bad key — confirmed live issue, April 2026.</div>
-        </div>
-      </div>
-      <div class="warning-item sev-red">
-        <div class="warn-icon">🔴</div>
-        <div class="warn-body">
-          <div class="warn-title">Two list add-member paths — different consent outcomes</div>
-          <div class="warn-desc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px">subscribe</code> is consent-aware but returns 200 empty and adds nobody if double opt-in is on (Klaviyo's default). <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">relationships/profiles</code> adds immediately but grants no consent. Both look identical in the response.</div>
-        </div>
-      </div>
-      <div class="warning-item sev-amber">
-        <div class="warn-icon">🟡</div>
-        <div class="warn-body">
-          <div class="warn-title">Upsert is silent — no create vs. update distinction</div>
-          <div class="warn-desc">Re-sending the same email or external ID silently overwrites the existing profile. No error, no duplicate. Design your pipeline to treat every <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">POST /api/profiles</code> as an overwrite.</div>
-        </div>
-      </div>
-      <div class="warning-item sev-amber">
-        <div class="warn-icon">🟡</div>
-        <div class="warn-body">
-          <div class="warn-title">Segment creation: 100/day daily cap</div>
-          <div class="warn-desc">Burst 1/s, steady 15/min, and a hard 100-per-day ceiling. A loop exhausts quota silently before the failure pattern becomes obvious. Segment membership is computed — you cannot add or remove members directly.</div>
-        </div>
-      </div>
-      <div class="warning-item sev-info">
-        <div class="warn-icon">ℹ️</div>
-        <div class="warn-body">
-          <div class="warn-title">Add member requires a profile ID, not an email</div>
-          <div class="warn-desc">For a net-new contact, this is a two-step sequence: create/resolve the profile first, get back an ID, then add to the list by ID. The Bulk Profile Import API can do both in one call.</div>
-        </div>
-      </div>
-      <div class="warning-item sev-amber">
-        <div class="warn-icon">🟡</div>
-        <div class="warn-body">
-          <div class="warn-title">Empty segment after creation = data quality signal, not config error</div>
-          <div class="warn-desc">If a newly created segment has zero members, the most likely cause is that no profiles have the property values the rule references — not that the rule is wrong. Verify profile data exists before debugging the segment definition. Membership updates 10–60 seconds after a matching profile is upserted.</div>
-        </div>
-      </div>
+    <div class="warning-list" id="warning-list">
+      <!-- rendered by renderWarnings() when navigating to screen 3 -->
     </div>
 
-    <div class="ack-section">
-      <div class="ack-label">Required acknowledgments</div>
-      <div class="ack-item">
-        <input type="checkbox" id="ack-delete" onchange="checkAcks()">
-        <label for="ack-delete">I understand that profile deletion is async, irreversible, and rate-limited at 60/min. I will test the delete step before running a live demo.</label>
-      </div>
-      <div class="ack-item">
-        <input type="checkbox" id="ack-subscribe" onchange="checkAcks()">
-        <label for="ack-subscribe">I understand the two list add-member paths have different consent semantics and will confirm double opt-in settings before testing the subscribe endpoint.</label>
-      </div>
+    <div class="ack-section" id="ack-section">
+      <!-- rendered by renderWarnings() -->
     </div>
   </div>
 
@@ -1434,26 +1361,17 @@
     <div class="screen-header">
       <div class="screen-eyebrow">Step 04 of 05</div>
       <div class="screen-title">Generating MCP server</div>
-      <div class="screen-sub">Running <code style="font-family:'IBM Plex Mono',monospace">openapi-mcp</code> against the enriched Klaviyo spec, scoped to the 10 confirmed operations. Behavioral warnings are embedded in tool descriptions.</div>
+      <div class="screen-sub" id="screen4-sub">Running <code style="font-family:'IBM Plex Mono',monospace">openapi-mcp</code> against the enriched Klaviyo spec, scoped to the 10 confirmed operations. Behavioral warnings are embedded in tool descriptions.</div>
     </div>
 
     <div class="gen-terminal" id="gen-log"></div>
 
     <div class="gen-tools" id="gen-tools">
       <div class="gen-tools-header">
-        <span class="gen-success-badge">✓ 10 tools generated</span>
+        <span class="gen-success-badge" id="screen4-badge">✓ 10 tools generated</span>
       </div>
-      <div class="tool-grid">
-        <div class="tool-chip">upsert_profile</div>
-        <div class="tool-chip">delete_profile</div>
-        <div class="tool-chip">list_profiles</div>
-        <div class="tool-chip">create_list</div>
-        <div class="tool-chip">add_list_member</div>
-        <div class="tool-chip">remove_list_member</div>
-        <div class="tool-chip">delete_list</div>
-        <div class="tool-chip">create_segment</div>
-        <div class="tool-chip">get_segment</div>
-        <div class="tool-chip">delete_segment</div>
+      <div class="tool-grid" id="tool-grid">
+        <!-- rendered by renderScreen4() -->
       </div>
     </div>
   </div>
@@ -1463,7 +1381,7 @@
     <div class="screen-header">
       <div class="screen-eyebrow">Step 05 of 05</div>
       <div class="screen-title">Live verification</div>
-      <div class="screen-sub">Real API calls against a Klaviyo free-tier account. All four steps confirmed in the Klaviyo dashboard.</div>
+      <div class="screen-sub" id="screen5-sub">Real API calls against a Klaviyo free-tier account. Segment membership computed automatically — no add-member call.</div>
     </div>
 
     <div style="margin-bottom:20px">
@@ -1471,10 +1389,10 @@
         <input id="demo-password" type="password" placeholder="Demo password" autocomplete="off"
           style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;width:200px;outline:none" />
         <button class="btn-primary" onclick="runLiveDemo()">
-          Run live demo against Klaviyo
+          Run live demo
         </button>
       </div>
-      <p style="font-size:12px;color:var(--ink-muted)">Enter the demo password to run live API calls against Klaviyo.</p>
+      <p style="font-size:12px;color:var(--ink-muted)">Enter the demo password to run live API calls.</p>
     </div>
     <div id="live-steps"></div>
   </div>
@@ -1519,6 +1437,235 @@
 <script>
   const BACKEND_URL = 'http://localhost:8000';
 
+  let selectedPlatform = 'klaviyo';
+  let selectedScenarioIndex = 0;
+
+  const PLATFORMS = {
+    klaviyo: {
+      name: 'Klaviyo',
+      scenarios: [
+        {
+          name: 'Manage Profiles',
+          skillLabel: 'Skill 1',
+          description: 'Upsert, delete, and export contact profiles',
+          warnings: [
+            { sev: 'sev-red', icon: '🔴', title: 'Profile delete is async and irreversible',
+              desc: '<code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">POST /api/data-privacy-deletion-jobs</code> submits a request — the profile is not gone immediately. No soft-delete, no undo. Rate limit is 60/min steady, far below profile writes. A 401 immediately after an API revision bump is not a bad key — confirmed live issue, April 2026.' },
+            { sev: 'sev-amber', icon: '🟡', title: 'Upsert is silent — no create vs. update distinction',
+              desc: 'Re-sending the same email or external ID silently overwrites the existing profile. No error, no duplicate. Design your pipeline to treat every <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">POST /api/profiles</code> as an overwrite.' },
+          ],
+          acks: [
+            { id: 'ack-delete', label: 'I understand that profile deletion is async, irreversible, and rate-limited at 60/min. I will test the delete step before running a live demo.' },
+          ]
+        },
+        {
+          name: 'Manage Audiences — Lists',
+          skillLabel: 'Skill 2',
+          description: 'Add, remove, and subscribe contacts to lists',
+          warnings: [
+            { sev: 'sev-red', icon: '🔴', title: 'Two list add-member paths — different consent outcomes',
+              desc: '<code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">subscribe</code> is consent-aware but returns 200 empty and adds nobody if double opt-in is on (Klaviyo\'s default). <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">relationships/profiles</code> adds immediately but grants no consent. Both look identical in the response.' },
+            { sev: 'sev-info', icon: 'ℹ️', title: 'Add member requires a profile ID, not an email',
+              desc: 'For a net-new contact, this is a two-step sequence: create/resolve the profile first, get back an ID, then add to the list by ID. The Bulk Profile Import API can do both in one call.' },
+            { sev: 'sev-amber', icon: '🟡', title: 'Remove from list ≠ unsubscribe',
+              desc: 'Removing a profile from a list does not revoke marketing consent. Use the Profile Suppression endpoint to stop communications.' },
+          ],
+          acks: [
+            { id: 'ack-subscribe', label: 'I understand the two list add-member paths have different consent semantics and will confirm double opt-in settings before testing the subscribe endpoint.' },
+          ]
+        },
+        {
+          name: 'Manage Segments',
+          skillLabel: 'Skill 3',
+          description: 'Create and read rule-based audience segments',
+          warnings: [
+            { sev: 'sev-red', icon: '🔴', title: 'Segment creation: 100/day hard daily cap',
+              desc: 'Burst 1/s, steady 15/min, and a hard 100-per-day ceiling. A loop exhausts quota silently before the failure pattern becomes obvious. Segment membership is computed — you cannot add or remove members directly.' },
+            { sev: 'sev-amber', icon: '🟡', title: 'Empty segment after creation = data quality signal, not config error',
+              desc: 'If a newly created segment has zero members, the most likely cause is that no profiles have the property values the rule references — not that the rule is wrong. Verify profile data exists before debugging the segment definition. Membership updates 10–60 seconds after a matching profile is upserted.' },
+            { sev: 'sev-info', icon: 'ℹ️', title: 'Segment membership is not writable — by design',
+              desc: 'There is no add-member or remove-member endpoint for segments. To change who is in a segment, change the rule. This is intentional CDP behavior.' },
+          ],
+          acks: [
+            { id: 'ack-segments', label: 'I understand that segment membership is computed automatically and cannot be set manually, and that the daily cap is 100 segments.' },
+          ]
+        },
+      ],
+      tools: [
+        'upsert_profile','delete_profile','list_profiles',
+        'create_list','add_list_member','remove_list_member','delete_list',
+        'create_segment','get_segment','delete_segment',
+      ],
+      toolCount: 10,
+      demoEndpoint: '/demo/klaviyo/run',
+      demoPollPath: (segId) => `/demo/klaviyo/segment/${segId}/members`,
+      screen4Sub: 'Running <code style="font-family:\'IBM Plex Mono\',monospace">openapi-mcp</code> against the enriched Klaviyo spec, scoped to the 10 confirmed operations. Behavioral warnings are embedded in tool descriptions.',
+      screen5Desc: 'Real API calls against a Klaviyo free-tier account. Segment membership computed automatically — no add-member call.',
+      specExamples: [
+        { tag: 'Profiles', text: 'raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/profiles.json' },
+        { tag: 'Lists', text: 'raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/lists.json' },
+        { tag: 'Segments', text: 'raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/segments.json' },
+        { tag: 'Data Privacy', text: 'raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/data_privacy.json' },
+      ],
+      pasteExample: `{\n  "openapi": "3.0.0",\n  "info": { "title": "Klaviyo API", "version": "2024-10-15" },\n  "servers": [{ "url": "https://a.klaviyo.com" }],\n  "paths": {\n    "/api/profiles": {\n      "post": { "operationId": "createProfile", "tags": ["Profiles"] },\n      "get":  { "operationId": "getProfiles", "tags": ["Profiles"] }\n    },\n    "/api/data-privacy-deletion-jobs": {\n      "post": { "operationId": "requestProfileDeletion", "tags": ["Data Privacy"] }\n    },\n    "/api/lists": {\n      "post": { "operationId": "createList", "tags": ["Lists"] }\n    }\n  }\n}`,
+    },
+
+    hubspot: {
+      name: 'HubSpot',
+      scenarios: [
+        {
+          name: 'Manage Contacts',
+          skillLabel: 'Skill 4',
+          description: 'Create, upsert, update, and archive contacts',
+          warnings: [
+            { sev: 'sev-red', icon: '🔴', title: 'Single-object create duplicates on existing email',
+              desc: '<code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">POST /crm/v3/objects/contacts</code> creates a new record every time. If the email already exists, a duplicate is created silently — no 409, no error. Use the batch upsert endpoint with <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">idProperty: "email"</code> for safe deduplication.' },
+            { sev: 'sev-amber', icon: '🟡', title: 'Archive ≠ delete — no hard delete via API',
+              desc: 'The DELETE endpoint archives the contact (soft delete). Archived contacts are hidden from search results by default but can be retrieved with <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">archived=true</code>. There is no permanent removal via the CRM v3 API.' },
+            { sev: 'sev-info', icon: 'ℹ️', title: 'Auth format: Bearer token',
+              desc: 'HubSpot uses <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">Authorization: Bearer {token}</code> — not a custom header name like some other platforms. Rate limit: 100 req / 10s. On 429, read the <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">Retry-After</code> header.' },
+          ],
+          acks: [
+            { id: 'ack-hs-contacts', label: 'I understand that single-object contact creation does not deduplicate and will use batch upsert with idProperty=email for safe upsert operations.' },
+          ]
+        },
+        {
+          name: 'Manage Lists',
+          skillLabel: 'Skill 5',
+          description: 'Create and manage static and dynamic contact lists',
+          warnings: [
+            { sev: 'sev-red', icon: '🔴', title: 'processingType is permanent — MANUAL vs DYNAMIC cannot be changed',
+              desc: 'Set <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">processingType</code> correctly at creation. <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">MANUAL</code> lists accept add/remove calls. <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">DYNAMIC</code> lists compute membership from a filter rule. Once set, processingType cannot be changed.' },
+            { sev: 'sev-red', icon: '🔴', title: 'Adding contact to DYNAMIC list returns 200 and silently does nothing',
+              desc: 'The add-members endpoint returns HTTP 200 on DYNAMIC lists with no indication of failure. The contact is not added — membership is computed only. This is the same pattern as Klaviyo\'s segments but called a "list" here.' },
+            { sev: 'sev-info', icon: 'ℹ️', title: 'Always include objectTypeId for contact lists',
+              desc: '<code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">objectTypeId: "0-1"</code> specifies that this is a contact list. Omitting it may cause unexpected behavior.' },
+          ],
+          acks: [
+            { id: 'ack-hs-lists', label: 'I understand that DYNAMIC lists do not accept manual membership writes and that processingType is permanent at creation.' },
+          ]
+        },
+        {
+          name: 'Manage Associations',
+          skillLabel: 'Skill 6',
+          description: 'Link contacts to companies, deals, and tickets',
+          warnings: [
+            { sev: 'sev-red', icon: '🔴', title: 'Association type IDs are magic numbers',
+              desc: 'The type ID is required to create or delete specific association types. Contact→Company = <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">1</code>, Contact→Deal = <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">3</code>, Contact→Ticket = <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">16</code>. These are not returned by the API in human-readable form.' },
+            { sev: 'sev-red', icon: '🔴', title: 'Delete without type ID removes ALL associations between two objects',
+              desc: 'Calling DELETE on an association without specifying a type ID removes every association type between the two objects — not just the default one. Include the type ID in the URL to scope the deletion.' },
+            { sev: 'sev-info', icon: 'ℹ️', title: 'v3 and v4 association APIs coexist',
+              desc: 'Prefer the v4 API (<code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">/crm/v4/objects/.../associations/...</code>) for new work. The v3 API (<code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">/crm/v3/associations/...</code>) has a different URL structure and response shape.' },
+          ],
+          acks: [
+            { id: 'ack-hs-assoc', label: 'I understand that association type IDs are magic numbers and that deleting without a type ID removes all associations between two objects.' },
+          ]
+        },
+      ],
+      tools: [
+        'create_contact','batch_upsert_contacts','update_contact','archive_contact','search_contacts',
+        'create_list','add_list_members','remove_list_members','get_list_memberships',
+        'create_association','get_associations','delete_association',
+      ],
+      toolCount: 12,
+      demoEndpoint: '/demo/hubspot/run',
+      demoPollPath: null,
+      screen4Sub: 'Running <code style="font-family:\'IBM Plex Mono\',monospace">openapi-mcp</code> against the enriched HubSpot spec, scoped to the 12 confirmed operations. Behavioral warnings are embedded in tool descriptions.',
+      screen5Desc: 'Real API calls against a HubSpot free account. Creates a contact, creates a company, then associates them — demonstrating the cross-object linking model.',
+      specExamples: [
+        { tag: 'Contacts', text: 'raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/Crm/Contacts.json' },
+        { tag: 'Lists', text: 'raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/Crm/Lists.json' },
+        { tag: 'Associations', text: 'raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/Crm/Associations.json' },
+      ],
+      pasteExample: `{\n  "openapi": "3.0.0",\n  "info": { "title": "HubSpot CRM API", "version": "v3" },\n  "servers": [{ "url": "https://api.hubapi.com" }],\n  "paths": {\n    "/crm/v3/objects/contacts": {\n      "post": { "operationId": "createContact", "tags": ["Contacts"] },\n      "get":  { "operationId": "listContacts", "tags": ["Contacts"] }\n    },\n    "/crm/v3/lists": {\n      "post": { "operationId": "createList", "tags": ["Lists"] }\n    }\n  }\n}`,
+    },
+  };
+
+  function switchPlatform(platform) {
+    selectedPlatform = platform;
+    selectedScenarioIndex = 0;
+    genDone = false;
+    document.querySelectorAll('.platform-btn').forEach(b => b.classList.toggle('selected', b.dataset.platform === platform));
+    renderScenarioButtons();
+    renderUrlExamples();
+    updatePasteExample();
+  }
+
+  function renderScenarioButtons() {
+    const p = PLATFORMS[selectedPlatform];
+    const container = document.getElementById('scenario-toggle');
+    container.innerHTML = p.scenarios.map((s, i) => `
+      <button class="toggle-btn${i === selectedScenarioIndex ? ' selected' : ''}"
+        onclick="selectScenarioIndex(${i})">${s.name}</button>
+    `).join('');
+  }
+
+  function selectScenarioIndex(i) {
+    selectedScenarioIndex = i;
+    document.querySelectorAll('#scenario-toggle .toggle-btn').forEach((b, idx) =>
+      b.classList.toggle('selected', idx === i));
+  }
+
+  function renderUrlExamples() {
+    const examples = PLATFORMS[selectedPlatform].specExamples;
+    const container = document.getElementById('url-examples');
+    if (!container) return;
+    container.innerHTML = examples.map(e => `
+      <div class="url-example">
+        <span class="url-example-tag">${e.tag}</span>
+        <span class="url-example-text">${e.text}</span>
+      </div>
+    `).join('');
+  }
+
+  function updatePasteExample() {
+    const ta = document.querySelector('.spec-input');
+    if (ta) ta.value = PLATFORMS[selectedPlatform].pasteExample;
+  }
+
+  function renderWarnings() {
+    const scenario = PLATFORMS[selectedPlatform].scenarios[selectedScenarioIndex];
+    const wList = document.getElementById('warning-list');
+    const ackSection = document.getElementById('ack-section');
+    if (!wList || !scenario) return;
+
+    wList.innerHTML = scenario.warnings.map(w => `
+      <div class="warning-item ${w.sev}">
+        <div class="warn-icon">${w.icon}</div>
+        <div class="warn-body">
+          <div class="warn-title">${w.title}</div>
+          <div class="warn-desc">${w.desc}</div>
+        </div>
+      </div>
+    `).join('');
+
+    ackSection.innerHTML = `
+      <div class="ack-label">Required acknowledgments</div>
+      ${scenario.acks.map(a => `
+        <div class="ack-item">
+          <input type="checkbox" id="${a.id}" onchange="checkAcks()">
+          <label for="${a.id}">${a.label}</label>
+        </div>
+      `).join('')}
+    `;
+  }
+
+  function renderScreen4() {
+    const p = PLATFORMS[selectedPlatform];
+    const sub = document.getElementById('screen4-sub');
+    const badge = document.getElementById('screen4-badge');
+    const grid = document.getElementById('tool-grid');
+    if (sub) sub.innerHTML = p.screen4Sub;
+    if (badge) badge.textContent = `✓ ${p.toolCount} tools generated`;
+    if (grid) grid.innerHTML = p.tools.map(t => `<div class="tool-chip">${t}</div>`).join('');
+  }
+
+  function renderScreen5() {
+    const p = PLATFORMS[selectedPlatform];
+    const sub = document.getElementById('screen5-sub');
+    if (sub) sub.textContent = p.screen5Desc;
+  }
+
   let current = 1;
   const total = 5;
   let genDone = false;
@@ -1552,11 +1699,15 @@
     document.getElementById('restart-btn').style.display = n === total ? 'inline-flex' : 'none';
     document.getElementById('step-count').textContent = 'Step ' + n + ' of ' + total;
 
-    // screen 3: re-check ack state
-    if (n === 3) checkAcks();
+    // screen 3: render warnings (generates checkboxes), then check state
+    if (n === 3) { renderWarnings(); checkAcks(); }
 
-    // screen 4: run generation
+    // screen 4: run generation + render platform tools
     if (n === 4 && !genDone) runGeneration();
+    if (n === 4) renderScreen4();
+
+    // screen 5: render subtitle
+    if (n === 5) renderScreen5();
 
     current = n;
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1566,73 +1717,69 @@
   function prev() { goTo(current - 1); }
 
   async function runLiveDemo() {
+    const platform = PLATFORMS[selectedPlatform];
     const btn = document.querySelector('[onclick="runLiveDemo()"]');
     if (btn) btn.disabled = true;
 
     const demoKey = (document.getElementById('demo-password')?.value || '').trim();
-
     const container = document.getElementById('live-steps');
     if (!container) return;
-    container.innerHTML = '<p style="color:var(--ink-muted);font-size:13px">Calling Klaviyo API…</p>';
+    container.innerHTML = '<p style="color:var(--ink-muted);font-size:13px">Calling API…</p>';
 
     try {
-      // Step 1-2: create segment + upsert profile
-      const run = await fetch(`${BACKEND_URL}/demo/run`, { method: 'POST', headers: { 'X-Demo-Key': demoKey } });
-      if (!run.ok) throw new Error(`/demo/run returned ${run.status}`);
+      const run = await fetch(`${BACKEND_URL}${platform.demoEndpoint}`, {
+        method: 'POST',
+        headers: { 'X-Demo-Key': demoKey }
+      });
+      if (!run.ok) throw new Error(`${platform.demoEndpoint} returned ${run.status}`);
       const result = await run.json();
 
-      const segmentId = result.segment_id;
-      if (!segmentId) throw new Error('segment_id missing from /demo/run response');
-      const profileId = result.profile_id;
+      // Render initial steps
+      const stepsHtml = result.steps.map(s => `
+        <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--green);font-weight:600;min-width:16px">✓</span>
+          <div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500">${s.step}</div>
+            ${s.id ? `<div style="font-size:12px;color:var(--ink-muted)">id: ${s.id}</div>` : ''}
+            ${s.association ? `<div style="font-size:12px;color:var(--ink-muted)">${s.association}</div>` : ''}
+            ${s.message ? `<div style="font-size:12px;color:var(--ink-muted)">${s.message}</div>` : ''}
+          </div>
+          <span style="margin-left:auto;font-size:11px;color:var(--green)">${s.status}</span>
+        </div>
+      `).join('');
+      container.innerHTML = stepsHtml;
 
-      container.innerHTML = result.steps.map(s => {
-        const icon = s.status === 'ok' ? '✓' : '⏳';
-        const color = s.status === 'ok' ? 'var(--green)' : 'var(--amber)';
-        return `<div style="padding:10px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:flex-start">
-          <span style="color:${color};font-weight:600;flex-shrink:0">${icon}</span>
-          <span><strong>${s.step.replace(/_/g,' ')}</strong>${s.id ? ` — ID: <code style="font-family:IBM Plex Mono,monospace;font-size:11px">${s.id}</code>` : ''}${s.message ? `<br><span style="color:var(--ink-muted);font-size:13px">${s.message}</span>` : ''}</span>
-        </div>`;
-      }).join('');
+      if (platform.demoPollPath) {
+        // Klaviyo: poll for segment membership
+        const segmentId = result.segment_id;
+        if (!segmentId) throw new Error('segment_id missing from demo/run response');
 
-      // Step 3: countdown then poll
-      let seconds = 35;
-      const countdown = document.createElement('div');
-      countdown.style.cssText = 'padding:10px 0;color:var(--ink-muted);font-size:13px';
-      countdown.textContent = `Klaviyo computing segment membership… ${seconds}s`;
-      container.appendChild(countdown);
+        const countdownEl = document.createElement('p');
+        countdownEl.style.cssText = 'font-size:13px;color:var(--ink-muted);margin-top:12px';
+        container.appendChild(countdownEl);
 
-      await new Promise(resolve => {
+        let remaining = 45;
         const tick = setInterval(() => {
-          seconds--;
-          countdown.textContent = `Klaviyo computing segment membership… ${seconds}s`;
-          if (seconds <= 0) { clearInterval(tick); resolve(); }
+          remaining--;
+          countdownEl.textContent = `Waiting for Klaviyo to compute segment membership… ${remaining}s`;
+          if (remaining <= 0) clearInterval(tick);
         }, 1000);
-      });
 
-      // Step 4: poll membership
-      const poll = await fetch(`${BACKEND_URL}/demo/segment/${segmentId}/members`);
-      if (!poll.ok) throw new Error(`/demo/segment returned ${poll.status}`);
-      const membership = await poll.json();
+        await new Promise(r => setTimeout(r, 45000));
+        clearInterval(tick);
 
-      countdown.remove();
-      const memberDiv = document.createElement('div');
-      memberDiv.style.cssText = 'padding:10px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:flex-start';
-      memberDiv.innerHTML = `
-        <span style="color:var(--green);font-weight:600;flex-shrink:0">✓</span>
-        <span><strong>confirm segment membership</strong> — ${membership.member_count} member${membership.member_count !== 1 ? 's' : ''} (no add-member call made)<br>
-        <span style="color:var(--ink-muted);font-size:13px">segment_id: <code style="font-family:IBM Plex Mono,monospace">${segmentId}</code> · profile_id: <code style="font-family:IBM Plex Mono,monospace">${profileId}</code></span></span>`;
-      container.appendChild(memberDiv);
+        const poll = await fetch(`${BACKEND_URL}${platform.demoPollPath(segmentId)}`);
+        if (!poll.ok) throw new Error(`poll returned ${poll.status}`);
+        const members = await poll.json();
 
-      if (membership.member_count > 0) {
-        const banner = document.createElement('div');
-        banner.style.cssText = 'margin-top:16px;padding:14px 16px;background:var(--green-light);border:1px solid var(--green);border-radius:6px;color:var(--green-text);font-weight:500';
-        banner.textContent = `✓ Cross-skill causation confirmed — profile data drove segment membership with no add-member call.`;
-        container.appendChild(banner);
+        countdownEl.innerHTML = `
+          <span style="color:var(--green);font-weight:600">✓ Segment has ${members.member_count} member(s)</span>
+          — profile enrolled automatically via property match. No add-member call made.
+        `;
       }
 
     } catch (err) {
       container.innerHTML = `<p style="color:var(--red)">${err.message} — is the backend running at ${BACKEND_URL}?</p>`;
-      if (btn) btn.disabled = false;
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -2119,9 +2266,9 @@
   }
 
   function checkAcks() {
-    const a = document.getElementById('ack-delete').checked;
-    const b = document.getElementById('ack-subscribe').checked;
-    document.getElementById('next-btn').disabled = !(a && b);
+    const boxes = document.querySelectorAll('#ack-section input[type="checkbox"]');
+    const allChecked = boxes.length > 0 && [...boxes].every(b => b.checked);
+    document.getElementById('next-btn').disabled = !allChecked;
   }
 
   function runGeneration() {
@@ -2166,6 +2313,10 @@
     if (e.key === 'ArrowRight') next();
     if (e.key === 'ArrowLeft')  prev();
   });
+
+  // Initialize platform-driven UI on load
+  renderScenarioButtons();
+  renderUrlExamples();
 
   // init
   goTo(1);
