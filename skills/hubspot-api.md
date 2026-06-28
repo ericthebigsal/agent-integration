@@ -14,6 +14,8 @@ Authorization: Bearer {HUBSPOT_SERVICE_KEY}
 Content-Type: application/json
 ```
 
+**Base URL:** `https://api.hubapi.com`
+
 Source the token from the `HUBSPOT_SERVICE_KEY` environment variable.
 Never hardcode it. This is a Bearer token format — different from platforms
 that use custom header names (e.g. Klaviyo's `Klaviyo-API-Key`).
@@ -60,7 +62,7 @@ that use custom header names (e.g. Klaviyo's `Klaviyo-API-Key`).
 
 ## Manage Associations — Skill 6
 
-### Before calling `create_association` (PUT /crm/v4/objects/.../associations/...)
+### Before calling `create_association` (PUT /crm/v4/objects/{fromObjectType}/{fromObjectId}/associations/{toObjectType}/{toObjectId}/{associationTypeId})
 
 - Association type IDs are magic numbers you must know in advance:
   contact→company = `1`, contact→deal = `3`, contact→ticket = `16`.
@@ -71,7 +73,10 @@ that use custom header names (e.g. Klaviyo's `Klaviyo-API-Key`).
 ### Before calling `delete_association`
 
 - Without a type ID: removes ALL association types between the two objects.
-- To delete a specific type only, include the type ID in the URL.
+- To delete only a specific association type, use the batch archive endpoint — NOT a modified DELETE URL:
+  `POST /crm/v4/associations/{fromObjectType}/{toObjectType}/batch/archive`
+  Body: `[{"from": {"id": "{fromId}"}, "to": {"id": "{toId}"}, "types": [{"associationCategory": "HUBSPOT_DEFINED", "associationTypeId": 1}]}]`
+- Broad delete (removes ALL types): `DELETE /crm/v4/objects/{fromType}/{fromId}/associations/{toType}/{toId}`
 
 ---
 
@@ -94,4 +99,4 @@ Verify with:
 |---|---|---|
 | Duplicate contacts | POST /crm/v3/objects/contacts creates duplicate | Use batch upsert with idProperty=email |
 | Silent add-to-list failure | 200 returned but contact not in DYNAMIC list | DYNAMIC lists don't accept manual membership — this is by design |
-| Association delete too broad | All links between objects removed | Include associationTypeId in the DELETE URL |
+| Association delete too broad | All links between objects removed | Use POST /crm/v4/associations/{fromType}/{toType}/batch/archive with type ID in the body |
