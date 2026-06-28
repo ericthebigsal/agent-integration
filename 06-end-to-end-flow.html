@@ -531,6 +531,37 @@
   .spec-fetch-status.error   { color: var(--red-text); }
   .spec-fetch-status.success { color: var(--green-text); }
 
+  /* ── SCENARIO VALIDATION ── */
+  .spec-endpoint-row { flex-wrap: wrap; }
+  .ep-status {
+    width: 14px; height: 14px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 9px; font-weight: 700; flex-shrink: 0;
+    background: rgba(255,255,255,0.08); color: var(--ink-faint);
+    transition: background 0.2s, color 0.2s;
+  }
+  .ep-status-found   { background: rgba(16,185,129,0.22); color: #34D399; }
+  .ep-status-missing { background: rgba(239,68,68,0.15);  color: #F87171; }
+  .spec-endpoint-row.found   { background: rgba(16,185,129,0.05); }
+  .spec-endpoint-row.missing { opacity: 0.65; }
+  .spec-endpoint-row.missing .endpoint-path { text-decoration: line-through; color: var(--ink-faint); }
+  .ep-missing-note {
+    flex: 0 0 100%;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px; font-style: italic;
+    color: var(--ink-faint);
+    padding: 1px 0 3px 70px;
+  }
+  .btn-fetch-spec {
+    width: 100%; margin-top: 10px; padding: 12px;
+    background: #9B72FF; color: #fff;
+    border: none; border-radius: 8px; cursor: pointer;
+    font-size: 13px; font-weight: 600; letter-spacing: 0.03em;
+    transition: opacity 0.15s;
+  }
+  .btn-fetch-spec:hover    { opacity: 0.87; }
+  .btn-fetch-spec:disabled { opacity: 0.45; cursor: not-allowed; }
+
   /* ── FILE PICKER ── */
   .spec-picker {
     margin-top: 14px;
@@ -1307,6 +1338,7 @@
           <div id="fetch-status" class="spec-fetch-status" style="display:none"></div>
         </div>
       </div>
+      <button class="btn-fetch-spec" id="btn-fetch-spec" onclick="fetchSpecLive()">⬇ Fetch &amp; Validate Spec</button>
     </div>
   </div>
 
@@ -1551,6 +1583,14 @@
           name: 'Manage Profiles',
           skillLabel: 'Skill 1',
           description: 'Upsert, delete, and export contact profiles',
+          specUrl: 'https://raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/profiles.json',
+          requiredOps: [
+            { method: 'POST',   path: '/api/profiles',     label: 'Upsert / Create Profile' },
+            { method: 'GET',    path: '/api/profiles',     label: 'List Profiles' },
+            { method: 'GET',    path: '/api/profiles/{id}', label: 'Get Profile' },
+            { method: 'PATCH',  path: '/api/profiles/{id}', label: 'Update Profile' },
+            { method: 'DELETE', path: '/api/profiles/{id}', label: 'Delete Profile (direct)', missingNote: '✗ Not here — use POST /api/data-privacy-deletion-jobs (async, irreversible, 60/min limit)' },
+          ],
           warnings: [
             { sev: 'sev-red', icon: '🔴', title: 'Profile delete is async and irreversible',
               desc: '<code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">POST /api/data-privacy-deletion-jobs</code> submits a request — the profile is not gone immediately. No soft-delete, no undo. Rate limit is 60/min steady, far below profile writes. A 401 immediately after an API revision bump is not a bad key — confirmed live issue, April 2026.' },
@@ -1565,6 +1605,14 @@
           name: 'Manage Audiences — Lists',
           skillLabel: 'Skill 2',
           description: 'Add, remove, and subscribe contacts to lists',
+          specUrl: 'https://raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/lists.json',
+          requiredOps: [
+            { method: 'POST',   path: '/api/lists',                             label: 'Create List' },
+            { method: 'POST',   path: '/api/lists/{id}/relationships/profiles', label: 'Add Members (direct, no consent)' },
+            { method: 'DELETE', path: '/api/lists/{id}/relationships/profiles', label: 'Remove Members' },
+            { method: 'DELETE', path: '/api/lists/{id}',                        label: 'Delete List' },
+            { method: 'POST',   path: '/api/lists/{id}/subscribe',              label: 'Subscribe (consent-aware)', missingNote: '✗ Not in lists spec — use POST /api/profile-subscription-bulk-create-jobs for GDPR-aware adds' },
+          ],
           warnings: [
             { sev: 'sev-red', icon: '🔴', title: 'Two list add-member paths — different consent outcomes',
               desc: '<code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">subscribe</code> is consent-aware but returns 200 empty and adds nobody if double opt-in is on (Klaviyo\'s default). <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">relationships/profiles</code> adds immediately but grants no consent. Both look identical in the response.' },
@@ -1581,6 +1629,14 @@
           name: 'Manage Segments',
           skillLabel: 'Skill 3',
           description: 'Create and read rule-based audience segments',
+          specUrl: 'https://raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/segments.json',
+          requiredOps: [
+            { method: 'POST',   path: '/api/segments',                             label: 'Create Segment' },
+            { method: 'GET',    path: '/api/segments/{id}',                        label: 'Get Segment' },
+            { method: 'DELETE', path: '/api/segments/{id}',                        label: 'Delete Segment' },
+            { method: 'POST',   path: '/api/segments/{id}/relationships/profiles', label: 'Add Members', missingNote: '✗ Not in spec — segment membership is computed from rules, not writable' },
+            { method: 'DELETE', path: '/api/segments/{id}/relationships/profiles', label: 'Remove Members', missingNote: '✗ Not in spec — change the segment rule to affect who matches' },
+          ],
           warnings: [
             { sev: 'sev-red', icon: '🔴', title: 'Segment creation: 100/day hard daily cap',
               desc: 'Burst 1/s, steady 15/min, and a hard 100-per-day ceiling. A loop exhausts quota silently before the failure pattern becomes obvious. Segment membership is computed — you cannot add or remove members directly.' },
@@ -1638,6 +1694,16 @@
           name: 'Manage Contacts',
           skillLabel: 'Skill 4',
           description: 'Create, upsert, update, and archive contacts',
+          specUrl: 'https://raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/CRM/Contacts/Rollouts/424/v3/contacts.json',
+          requiredOps: [
+            { method: 'POST',   path: '/crm/v3/objects/contacts',                 label: 'Create Contact' },
+            { method: 'GET',    path: '/crm/v3/objects/contacts',                 label: 'List Contacts' },
+            { method: 'GET',    path: '/crm/v3/objects/contacts/{contactId}',     label: 'Get Contact' },
+            { method: 'PATCH',  path: '/crm/v3/objects/contacts/{contactId}',     label: 'Update Contact' },
+            { method: 'DELETE', path: '/crm/v3/objects/contacts/{contactId}',     label: 'Archive Contact' },
+            { method: 'POST',   path: '/crm/v3/objects/contacts/batch/upsert',    label: 'Batch Upsert (safe dedup)' },
+            { method: 'POST',   path: '/crm/v3/objects/contacts/search',          label: 'Search Contacts' },
+          ],
           warnings: [
             { sev: 'sev-red', icon: '🔴', title: 'Single-object create duplicates on existing email',
               desc: '<code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">POST /crm/v3/objects/contacts</code> creates a new record every time. If the email already exists, a duplicate is created silently — no 409, no error. Use the batch upsert endpoint with <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">idProperty: "email"</code> for safe deduplication.' },
@@ -1654,6 +1720,15 @@
           name: 'Manage Lists',
           skillLabel: 'Skill 5',
           description: 'Create and manage static and dynamic contact lists',
+          specUrl: 'https://raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/CRM/Lists/Rollouts/144891/v3/lists.json',
+          requiredOps: [
+            { method: 'POST',   path: '/crm/v3/lists',                                     label: 'Create List' },
+            { method: 'GET',    path: '/crm/v3/lists/{listId}',                             label: 'Get List' },
+            { method: 'DELETE', path: '/crm/v3/lists/{listId}',                             label: 'Delete List' },
+            { method: 'PUT',    path: '/crm/v3/lists/{listId}/memberships/add-and-remove',  label: 'Manage Members' },
+            { method: 'DELETE', path: '/crm/v3/lists/{listId}/memberships',                 label: 'Clear All Members' },
+            { method: 'PATCH',  path: '/crm/v3/lists/{listId}',                             label: 'Update List Properties', missingNote: '✗ No direct PATCH endpoint — use PUT update-list-name or update-list-filters' },
+          ],
           warnings: [
             { sev: 'sev-red', icon: '🔴', title: 'processingType is permanent — MANUAL vs DYNAMIC cannot be changed',
               desc: 'Set <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">processingType</code> correctly at creation. <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">MANUAL</code> lists accept add/remove calls. <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">DYNAMIC</code> lists compute membership from a filter rule. Once set, processingType cannot be changed.' },
@@ -1670,6 +1745,12 @@
           name: 'Manage Associations',
           skillLabel: 'Skill 6',
           description: 'Link contacts to companies, deals, and tickets',
+          specUrl: 'https://raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/CRM/Associations/Rollouts/120891/v3/associations.json',
+          requiredOps: [
+            { method: 'POST', path: '/crm/v3/associations/{fromObjectType}/{toObjectType}/batch/create',  label: 'Create Associations' },
+            { method: 'POST', path: '/crm/v3/associations/{fromObjectType}/{toObjectType}/batch/read',    label: 'Read Associations' },
+            { method: 'POST', path: '/crm/v3/associations/{fromObjectType}/{toObjectType}/batch/archive', label: 'Delete Associations' },
+          ],
           warnings: [
             { sev: 'sev-red', icon: '🔴', title: 'Association type IDs are magic numbers',
               desc: 'The type ID is required to create or delete specific association types. Contact→Company = <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">1</code>, Contact→Deal = <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">3</code>, Contact→Ticket = <code style="font-family:\'IBM Plex Mono\',monospace;font-size:11px">16</code>. These are not returned by the API in human-readable form.' },
@@ -1742,24 +1823,34 @@
     selectedScenarioIndex = i;
     document.querySelectorAll('#scenario-toggle .toggle-btn').forEach((b, idx) =>
       b.classList.toggle('selected', idx === i));
+    renderSpecExplorer();
   }
 
   function renderSpecExplorer() {
     const p = PLATFORMS[selectedPlatform];
     const preview = p.specPreview;
+    const scenario = p.scenarios[selectedScenarioIndex];
     const explorer = document.getElementById('spec-explorer');
     if (explorer) {
       explorer.style.setProperty('--platform-accent', preview.accent);
       explorer.style.setProperty('--platform-server-bg', preview.serverBg);
     }
+    const fetchBtn = document.getElementById('btn-fetch-spec');
+    if (fetchBtn) fetchBtn.style.background = preview.accent;
+
     document.getElementById('spec-explorer-title').textContent = preview.title;
     document.getElementById('spec-explorer-version').textContent = preview.version;
     document.getElementById('spec-explorer-server').textContent = preview.server;
-    document.getElementById('spec-explorer-count').textContent =
-      `${preview.endpoints.length} endpoints shown · ${preview.total} total in spec`;
+
+    const specUrl = scenario?.specUrl || p.defaultSpecUrl;
     const urlInput = document.getElementById('spec-url');
-    if (urlInput) urlInput.value = p.defaultSpecUrl;
-    renderEndpointRows(preview.endpoints);
+    if (urlInput) urlInput.value = specUrl;
+
+    const requiredOps = scenario?.requiredOps || [];
+    document.getElementById('spec-explorer-count').textContent =
+      `${requiredOps.length} required operations · click Fetch to validate`;
+    renderRequiredOps(requiredOps, null);
+
     const status = document.getElementById('fetch-status');
     if (status) status.style.display = 'none';
   }
@@ -1774,6 +1865,44 @@
         <span class="endpoint-desc">${ep.desc}</span>
       </div>
     `).join('');
+  }
+
+  function normalizePath(p) {
+    return p.replace(/\{[^}]+\}/g, '{p}');
+  }
+
+  function opExistsInSpec(method, path, specPaths) {
+    const norm = normalizePath(path);
+    for (const [specPath, methods] of Object.entries(specPaths)) {
+      if (normalizePath(specPath) === norm && methods[method.toLowerCase()] !== undefined) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function renderRequiredOps(ops, specPaths) {
+    const body = document.getElementById('spec-explorer-body');
+    if (!body) return;
+    body.innerHTML = ops.map((op, i) => {
+      let state = 'pending';
+      if (specPaths !== null) {
+        state = opExistsInSpec(op.method, op.path, specPaths) ? 'found' : 'missing';
+      }
+      const icon = state === 'found' ? '✓' : state === 'missing' ? '✗' : '·';
+      const statusCls = state === 'found' ? 'ep-status-found' : state === 'missing' ? 'ep-status-missing' : '';
+      const note = (state === 'missing' && op.missingNote)
+        ? `<span class="ep-missing-note">${op.missingNote}</span>` : '';
+      return `
+        <div class="spec-endpoint-row ${state}" style="animation-delay:${i * 0.045}s">
+          <span class="ep-status ${statusCls}">${icon}</span>
+          <span class="http-badge http-${op.method.toLowerCase()}">${op.method}</span>
+          <span class="endpoint-path">${op.path}</span>
+          <span class="endpoint-desc">${op.label}</span>
+          ${note}
+        </div>
+      `;
+    }).join('');
   }
 
   function renderWarnings() {
@@ -2151,15 +2280,20 @@
 
   async function fetchSpecLive() {
     const url = document.getElementById('spec-url').value.trim();
-    const btn = document.getElementById('fetch-btn');
+    const smallBtn = document.getElementById('fetch-btn');
+    const bigBtn   = document.getElementById('btn-fetch-spec');
     if (!url) { setFetchStatus('error', 'Enter a URL first.'); return; }
-    btn.disabled = true;
-    btn.textContent = 'Loading…';
+
+    if (smallBtn) { smallBtn.disabled = true; smallBtn.textContent = '…'; }
+    if (bigBtn)   { bigBtn.disabled = true;   bigBtn.textContent = '⬇ Fetching…'; }
+
+    const scenario    = PLATFORMS[selectedPlatform].scenarios[selectedScenarioIndex];
+    const requiredOps = scenario?.requiredOps || null;
     try {
-      await directFetch(url);
+      await directFetch(url, requiredOps);
     } finally {
-      btn.disabled = false;
-      btn.textContent = '↻ Reload';
+      if (smallBtn) { smallBtn.disabled = false; smallBtn.textContent = '↻ Reload'; }
+      if (bigBtn)   { bigBtn.disabled = false;   bigBtn.textContent = '⬇ Fetch & Validate Spec'; }
     }
   }
 
@@ -2366,40 +2500,53 @@
     }
   }
 
-  async function directFetch(url) {
-    setFetchStatus('loading', 'Fetching…');
+  async function directFetch(url, requiredOps) {
+    setFetchStatus('loading', 'Fetching spec…');
     try {
       const res = await fetch(url);
-      if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
       const text = await res.text();
       let parsed;
       try { parsed = JSON.parse(text); } catch (_) {}
       if (parsed && parsed.paths) {
         const pathKeys = Object.keys(parsed.paths);
-        const endpoints = [];
-        for (const path of pathKeys) {
-          for (const [method, op] of Object.entries(parsed.paths[path])) {
-            if (['get','post','put','patch','delete'].includes(method)) {
-              endpoints.push({ method: method.toUpperCase(), path, desc: op.summary || op.operationId || '' });
-            }
-          }
-          if (endpoints.length >= 8) break;
-        }
         const title   = parsed.info?.title   || document.getElementById('spec-explorer-title').textContent;
         const version = parsed.info?.version || '';
         const server  = (parsed.servers?.[0]?.url || '').replace(/^https?:\/\//, '');
         document.getElementById('spec-explorer-title').textContent = title;
         if (version) document.getElementById('spec-explorer-version').textContent = version;
         if (server)  document.getElementById('spec-explorer-server').textContent  = server;
-        document.getElementById('spec-explorer-count').textContent =
-          `${endpoints.length} endpoints shown · ${pathKeys.length} total paths`;
-        renderEndpointRows(endpoints);
-        setFetchStatus('success', `✓ ${pathKeys.length} paths loaded`);
+
+        if (requiredOps && requiredOps.length > 0) {
+          const foundCount   = requiredOps.filter(op => opExistsInSpec(op.method, op.path, parsed.paths)).length;
+          const missingCount = requiredOps.length - foundCount;
+          document.getElementById('spec-explorer-count').textContent =
+            `${foundCount} confirmed · ${missingCount} not in spec · ${pathKeys.length} total paths`;
+          renderRequiredOps(requiredOps, parsed.paths);
+          const msg = missingCount > 0
+            ? `✓ ${foundCount} confirmed · ${missingCount} intentionally absent (see ✗ below)`
+            : `✓ All ${foundCount} required operations confirmed`;
+          setFetchStatus('success', msg);
+        } else {
+          const endpoints = [];
+          for (const path of pathKeys) {
+            for (const [method, op] of Object.entries(parsed.paths[path])) {
+              if (['get','post','put','patch','delete'].includes(method)) {
+                endpoints.push({ method: method.toUpperCase(), path, desc: op.summary || op.operationId || '' });
+              }
+            }
+            if (endpoints.length >= 8) break;
+          }
+          document.getElementById('spec-explorer-count').textContent =
+            `${endpoints.length} endpoints shown · ${pathKeys.length} total paths`;
+          renderEndpointRows(endpoints);
+          setFetchStatus('success', `✓ ${pathKeys.length} paths loaded`);
+        }
       } else {
         setFetchStatus('success', '✓ Spec loaded');
       }
     } catch (err) {
-      setFetchStatus('error', '✗ ' + err.message);
+      setFetchStatus('error', '✗ Fetch failed: ' + err.message);
     }
   }
 
