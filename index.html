@@ -1693,7 +1693,7 @@
       demoPollPath: null,
       screen4Sub: 'Running <code style="font-family:\'IBM Plex Mono\',monospace">openapi-mcp</code> against the enriched HubSpot spec, scoped to the 12 confirmed operations. Behavioral warnings are embedded in tool descriptions.',
       screen5Desc: 'Real API calls against a HubSpot free account. Creates a contact, creates a company, then associates them — demonstrating the cross-object linking model.',
-      defaultSpecUrl: 'https://raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/Crm/Contacts.json',
+      defaultSpecUrl: 'https://raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/CRM/Contacts/Rollouts/424/v3/contacts.json',
       specPreview: {
         title: 'HubSpot CRM Contacts API',
         version: 'v3',
@@ -1712,9 +1712,9 @@
         total: 31,
       },
       specExamples: [
-        { tag: 'Contacts', text: 'raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/Crm/Contacts.json' },
-        { tag: 'Lists', text: 'raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/Crm/Lists.json' },
-        { tag: 'Associations', text: 'raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/Crm/Associations.json' },
+        { tag: 'Contacts', text: 'raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/CRM/Contacts/Rollouts/424/v3/contacts.json' },
+        { tag: 'Lists', text: 'raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/CRM/Lists/Rollouts/144891/v3/lists.json' },
+        { tag: 'Associations', text: 'raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/CRM/Associations/Rollouts/120891/v3/associations.json' },
       ],
       pasteExample: `{\n  "openapi": "3.0.0",\n  "info": { "title": "HubSpot CRM API", "version": "v3" },\n  "servers": [{ "url": "https://api.hubapi.com" }],\n  "paths": {\n    "/crm/v3/objects/contacts": {\n      "post": { "operationId": "createContact", "tags": ["Contacts"] },\n      "get":  { "operationId": "listContacts", "tags": ["Contacts"] }\n    },\n    "/crm/v3/lists": {\n      "post": { "operationId": "createList", "tags": ["Lists"] }\n    }\n  }\n}`,
     },
