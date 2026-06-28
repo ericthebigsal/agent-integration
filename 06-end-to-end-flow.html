@@ -364,7 +364,9 @@
     display: flex;
     align-items: baseline;
     gap: 10px;
+    cursor: pointer;
   }
+  .url-example:hover .url-example-text { color: var(--ink-muted); }
 
   .url-example-tag {
     font-family: 'IBM Plex Mono', monospace;
@@ -1501,6 +1503,7 @@
       demoPollPath: (segId) => `/demo/klaviyo/segment/${segId}/members`,
       screen4Sub: 'Running <code style="font-family:\'IBM Plex Mono\',monospace">openapi-mcp</code> against the enriched Klaviyo spec, scoped to the 10 confirmed operations. Behavioral warnings are embedded in tool descriptions.',
       screen5Desc: 'Real API calls against a Klaviyo free-tier account. Segment membership computed automatically — no add-member call.',
+      defaultSpecUrl: 'https://raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/profiles.json',
       specExamples: [
         { tag: 'Profiles', text: 'raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/profiles.json' },
         { tag: 'Lists', text: 'raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/lists.json' },
@@ -1572,6 +1575,7 @@
       demoPollPath: null,
       screen4Sub: 'Running <code style="font-family:\'IBM Plex Mono\',monospace">openapi-mcp</code> against the enriched HubSpot spec, scoped to the 12 confirmed operations. Behavioral warnings are embedded in tool descriptions.',
       screen5Desc: 'Real API calls against a HubSpot free account. Creates a contact, creates a company, then associates them — demonstrating the cross-object linking model.',
+      defaultSpecUrl: 'https://raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/Crm/Contacts.json',
       specExamples: [
         { tag: 'Contacts', text: 'raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/Crm/Contacts.json' },
         { tag: 'Lists', text: 'raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/Crm/Lists.json' },
@@ -1589,6 +1593,9 @@
     renderScenarioButtons();
     renderUrlExamples();
     updatePasteExample();
+    setInputMode('url');
+    const urlInput = document.getElementById('spec-url');
+    if (urlInput) urlInput.value = PLATFORMS[platform].defaultSpecUrl;
   }
 
   function renderScenarioButtons() {
@@ -1611,11 +1618,16 @@
     const container = document.getElementById('url-examples');
     if (!container) return;
     container.innerHTML = examples.map(e => `
-      <div class="url-example">
+      <div class="url-example" onclick="fillSpecUrl('https://${e.text}')">
         <span class="url-example-tag">${e.tag}</span>
         <span class="url-example-text">${e.text}</span>
       </div>
     `).join('');
+  }
+
+  function fillSpecUrl(url) {
+    const input = document.getElementById('spec-url');
+    if (input) input.value = url;
   }
 
   function updatePasteExample() {
@@ -2314,6 +2326,8 @@
   // Initialize platform-driven UI on load
   renderScenarioButtons();
   renderUrlExamples();
+  const _initUrl = document.getElementById('spec-url');
+  if (_initUrl) _initUrl.value = PLATFORMS[selectedPlatform].defaultSpecUrl;
 
   // init
   goTo(1);
