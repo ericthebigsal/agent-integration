@@ -7,7 +7,7 @@ app = FastAPI(title="Martech Integration Builder API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # demo only — not for production
     allow_methods=["*"],
     allow_headers=["*"],
 )

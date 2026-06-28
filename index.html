@@ -1344,7 +1344,7 @@
     <div class="screen-header">
       <div class="screen-eyebrow">Step 03 of 05</div>
       <div class="screen-title">Review before generating</div>
-      <div class="screen-sub">All endpoints are spec-confirmed — nothing was inferred or guessed. The warnings below come from the domain skill, not the spec. Acknowledge the two highest-severity items to proceed.</div>
+      <div class="screen-sub">All endpoints are spec-confirmed — nothing was inferred or guessed. The warnings below come from the domain skill, not the spec. Acknowledge each item to proceed.</div>
     </div>
 
     <div class="warning-list" id="warning-list">
@@ -1785,9 +1785,6 @@
     }
   }
 
-  function toggleScenario(btn) {
-    btn.classList.toggle('selected');
-  }
 
   function setInputMode(mode) {
     const tabs = document.querySelectorAll('.input-mode-tab');
