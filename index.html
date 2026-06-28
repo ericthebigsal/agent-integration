@@ -1467,10 +1467,14 @@
     </div>
 
     <div style="margin-bottom:20px">
-      <button class="btn-primary" onclick="runLiveDemo()" style="margin-bottom:16px">
-        Run live demo against Klaviyo
-      </button>
-      <p style="font-size:12px;color:var(--ink-muted)">Requires backend running at localhost:8000 with a real Klaviyo API key.</p>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+        <input id="demo-password" type="password" placeholder="Demo password" autocomplete="off"
+          style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;width:200px;outline:none" />
+        <button class="btn-primary" onclick="runLiveDemo()">
+          Run live demo against Klaviyo
+        </button>
+      </div>
+      <p style="font-size:12px;color:var(--ink-muted)">Enter the demo password to run live API calls against Klaviyo.</p>
     </div>
     <div id="live-steps"></div>
   </div>
@@ -1565,13 +1569,15 @@
     const btn = document.querySelector('[onclick="runLiveDemo()"]');
     if (btn) btn.disabled = true;
 
+    const demoKey = (document.getElementById('demo-password')?.value || '').trim();
+
     const container = document.getElementById('live-steps');
     if (!container) return;
     container.innerHTML = '<p style="color:var(--ink-muted);font-size:13px">Calling Klaviyo API…</p>';
 
     try {
       // Step 1-2: create segment + upsert profile
-      const run = await fetch(`${BACKEND_URL}/demo/run`, { method: 'POST' });
+      const run = await fetch(`${BACKEND_URL}/demo/run`, { method: 'POST', headers: { 'X-Demo-Key': demoKey } });
       if (!run.ok) throw new Error(`/demo/run returned ${run.status}`);
       const result = await run.json();
 

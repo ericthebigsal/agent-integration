@@ -1,6 +1,6 @@
 import httpx
 import uuid
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from backend.config import settings
 
 router = APIRouter()
@@ -29,9 +29,11 @@ async def _get(client: httpx.AsyncClient, path: str) -> dict:
 
 
 @router.post("/run")
-async def run_demo():
+async def run_demo(x_demo_key: str = Header(default="")):
     """Execute the cross-skill causation sequence. Returns step results immediately;
     caller should poll /demo/segment/{id}/members after ~30–60 seconds."""
+    if settings.demo_secret and x_demo_key != settings.demo_secret:
+        raise HTTPException(status_code=401, detail="Invalid demo key")
     results = []
     run_id = uuid.uuid4().hex[:8]
 
