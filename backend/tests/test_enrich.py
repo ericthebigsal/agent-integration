@@ -55,3 +55,22 @@ def test_handles_missing_description_key():
     result = enrich_spec(spec)
     desc = result["paths"]["/api/profiles"]["post"]["description"]
     assert "Idempotent upsert" in desc
+
+
+def test_enriches_hubspot_contact_single_create():
+    result = enrich_spec(_spec("/crm/v3/objects/contacts", "post"))
+    desc = result["paths"]["/crm/v3/objects/contacts"]["post"]["description"]
+    assert "duplicate" in desc.lower()
+
+
+def test_enriches_hubspot_list_create():
+    result = enrich_spec(_spec("/crm/v3/lists", "post"))
+    desc = result["paths"]["/crm/v3/lists"]["post"]["description"]
+    assert "processingType" in desc or "MANUAL" in desc
+
+
+def test_enriches_hubspot_association_create():
+    path = "/crm/v4/objects/{fromObjectType}/{fromObjectId}/associations/{toObjectType}/{toObjectId}"
+    result = enrich_spec(_spec(path, "put"))
+    desc = result["paths"][path]["put"]["description"]
+    assert "type ID" in desc or "magic" in desc.lower()

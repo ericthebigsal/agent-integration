@@ -46,6 +46,30 @@ ENRICHMENTS: dict[tuple[str, str], str] = {
         "Zero members = data quality issue (profiles missing the property values the "
         "rule references), not a config error. Wait 60s before diagnosing."
     ),
+    ("post", "/crm/v3/objects/contacts"): (
+        "⚠️ Creates a NEW contact record every time — does NOT deduplicate on email. "
+        "If a contact with the same email already exists, a duplicate is created silently. "
+        "For safe upsert, use POST /crm/v3/objects/contacts/batch/upsert with idProperty: 'email'."
+    ),
+    ("post", "/crm/v3/objects/contacts/batch/upsert"): (
+        "✅ Safe upsert: deduplicates on the specified idProperty (use 'email' for email-based dedup). "
+        "Existing contacts are updated; new contacts are created. "
+        "Rate limit: 100 requests / 10 seconds. On 429, read Retry-After header."
+    ),
+    ("post", "/crm/v3/lists"): (
+        "⚠️ processingType is permanent — cannot be changed after creation. "
+        "MANUAL = writable membership (add/remove via API). "
+        "DYNAMIC = computed from a filter; membership is not writable. "
+        "Adding a contact to a DYNAMIC list returns HTTP 200 and silently does nothing. "
+        "Always include objectTypeId: '0-1' for contact lists."
+    ),
+    ("put", "/crm/v4/objects/{fromObjectType}/{fromObjectId}/associations/{toObjectType}/{toObjectId}"): (
+        "⚠️ Association type IDs are magic numbers: contact→company = 1, contact→deal = 3, contact→ticket = 16. "
+        "These are not returned by the API in human-readable form — you must know them. "
+        "Association creation is idempotent (safe to repeat). "
+        "DELETE without a type ID removes ALL association types between two objects — "
+        "include the type ID in the DELETE URL to remove only a specific type."
+    ),
 }
 
 
