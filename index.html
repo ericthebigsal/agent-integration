@@ -2326,6 +2326,7 @@
   // Initialize platform-driven UI on load
   renderScenarioButtons();
   renderUrlExamples();
+  setInputMode('url');
   const _initUrl = document.getElementById('spec-url');
   if (_initUrl) _initUrl.value = PLATFORMS[selectedPlatform].defaultSpecUrl;
 
