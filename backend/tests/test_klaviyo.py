@@ -1,7 +1,10 @@
+import os
 from fastapi.testclient import TestClient
 from backend.main import app
 
 client = TestClient(app)
+
+_DEMO_KEY = os.getenv("DEMO_SECRET", "")
 
 
 def test_health():
@@ -12,7 +15,7 @@ def test_health():
 
 def test_run_demo_returns_expected_shape():
     """Integration test — requires KLAVIYO_PRIVATE_API_KEY in .env."""
-    r = client.post("/demo/run")
+    r = client.post("/demo/klaviyo/run", headers={"X-Demo-Key": _DEMO_KEY})
     assert r.status_code == 200
     body = r.json()
     assert "steps" in body
@@ -25,7 +28,7 @@ def test_run_demo_returns_expected_shape():
 
 
 def test_run_demo_steps_have_ok_status():
-    r = client.post("/demo/run")
+    r = client.post("/demo/klaviyo/run", headers={"X-Demo-Key": _DEMO_KEY})
     assert r.status_code == 200
     for step in r.json()["steps"]:
         if step.get("status") != "waiting":

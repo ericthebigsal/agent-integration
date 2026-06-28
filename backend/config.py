@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     klaviyo_revision: str = "2024-10-15"
     klaviyo_base_url: str = "https://a.klaviyo.com"
     demo_secret: str = Field(default="", alias="DEMO_SECRET")
+    hubspot_service_key: str = Field(default="", alias="HUBSPOT_SERVICE_KEY")
 
     model_config = {"env_file": ".env", "populate_by_name": True, "extra": "ignore"}
 
