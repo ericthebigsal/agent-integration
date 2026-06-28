@@ -387,6 +387,150 @@
     color: var(--ink-faint);
   }
 
+  /* ── SPEC EXPLORER CARD ── */
+  .spec-explorer {
+    margin-top: 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg-card);
+  }
+  .spec-explorer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 11px 14px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid var(--border);
+    border-top: 3px solid var(--platform-accent, #9B72FF);
+  }
+  .spec-explorer-meta { display: flex; align-items: center; gap: 8px; }
+  .spec-explorer-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .spec-explorer-version {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--ink-faint);
+    background: rgba(255,255,255,0.06);
+    padding: 1px 5px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+  }
+  .spec-explorer-server {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--platform-accent, #9B72FF);
+    background: var(--platform-server-bg, rgba(155,114,255,0.1));
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+  .spec-explorer-body { padding: 6px 0; min-height: 168px; }
+  @keyframes ep-in {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  .spec-endpoint-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px;
+    animation: ep-in 0.22s ease both;
+    transition: background 0.1s;
+  }
+  .spec-endpoint-row:hover { background: rgba(255,255,255,0.04); }
+  .http-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    padding: 2px 4px;
+    border-radius: 3px;
+    width: 46px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .http-get    { background: rgba(59,130,246,0.14);  color: #60A5FA; }
+  .http-post   { background: rgba(16,185,129,0.14);  color: #34D399; }
+  .http-patch  { background: rgba(245,158,11,0.14);  color: #FBBF24; }
+  .http-put    { background: rgba(139,92,246,0.14);  color: #A78BFA; }
+  .http-delete { background: rgba(239,68,68,0.14);   color: #F87171; }
+  .endpoint-path {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-muted);
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .endpoint-desc {
+    font-size: 11px;
+    color: var(--ink-faint);
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+  .spec-explorer-footer {
+    padding: 9px 14px;
+    border-top: 1px solid var(--border);
+    background: rgba(255,255,255,0.015);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .spec-explorer-count {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--ink-faint);
+  }
+  .spec-source-row { display: flex; align-items: center; gap: 7px; }
+  .spec-source-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    flex-shrink: 0;
+  }
+  .spec-source-url {
+    flex: 1;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--ink-muted);
+    background: transparent;
+    border: none;
+    outline: none;
+    min-width: 0;
+  }
+  .spec-source-url:focus { color: var(--ink); }
+  .spec-source-fetch {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--ink-muted);
+    cursor: pointer;
+    padding: 2px 8px;
+    flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .spec-source-fetch:hover { border-color: var(--border-focus); color: var(--ink); }
+  .spec-fetch-status {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    color: var(--ink-muted);
+  }
+  .spec-fetch-status.error   { color: var(--red-text); }
+  .spec-fetch-status.success { color: var(--green-text); }
+
   /* ── FILE PICKER ── */
   .spec-picker {
     margin-top: 14px;
@@ -1143,67 +1287,24 @@
     <div class="field-group">
       <span class="field-label">Spec source</span>
 
-      <div class="input-mode-tabs">
-        <button class="input-mode-tab active" onclick="setInputMode('paste')">Paste spec</button>
-        <button class="input-mode-tab" onclick="setInputMode('url')">Load from URL</button>
-      </div>
-
-      <!-- PASTE MODE -->
-      <div id="paste-mode">
-        <textarea class="spec-input" spellcheck="false">{
-  "openapi": "3.0.0",
-  "info": {
-    "title": "Klaviyo API",
-    "version": "2024-10-15",
-    "description": "The Klaviyo REST API."
-  },
-  "servers": [{ "url": "https://a.klaviyo.com" }],
-  "paths": {
-    "/api/profiles": {
-      "post": { "operationId": "createProfile", "tags": ["Profiles"] },
-      "get":  { "operationId": "getProfiles",   "tags": ["Profiles"] }
-    },
-    "/api/data-privacy-deletion-jobs": {
-      "post": { "operationId": "requestProfileDeletion", "tags": ["Data Privacy"] }
-    },
-    "/api/lists": {
-      "post": { "operationId": "createList", "tags": ["Lists"] }
-    }
-  }
-}</textarea>
-        <div class="spec-hint">Accepts OpenAPI JSON/YAML or a Postman collection JSON.</div>
-      </div>
-
-      <!-- URL MODE -->
-      <div id="url-mode" style="display:none">
-        <div class="url-input-row">
-          <input type="url" class="url-input" id="spec-url"
-            placeholder="https://raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/profiles.json">
-          <button class="btn-fetch" id="fetch-btn" onclick="fetchSpec()">Fetch</button>
-        </div>
-        <div id="fetch-status" class="fetch-status" style="display:none"></div>
-        <div class="url-examples" id="url-examples">
-          <!-- rendered by renderUrlExamples() on load and on platform switch -->
-        </div>
-
-        <!-- FILE PICKER (shown after GitHub repo discovery) -->
-        <div class="spec-picker" id="spec-picker" style="display:none">
-          <div class="picker-header">
-            <span class="picker-header-label" id="picker-label">Spec files found</span>
-            <button class="btn-load" id="load-selected-btn" onclick="loadSelectedFiles()">Load selected</button>
+      <!-- SPEC EXPLORER CARD -->
+      <div class="spec-explorer" id="spec-explorer">
+        <div class="spec-explorer-header">
+          <div class="spec-explorer-meta">
+            <span class="spec-explorer-title" id="spec-explorer-title"></span>
+            <span class="spec-explorer-version" id="spec-explorer-version"></span>
           </div>
-          <div class="picker-segments" id="picker-segments">
-            <button class="seg-btn seg-required" id="seg-required" onclick="filterPicker('required')">
-              Required <span class="seg-count" id="count-required">0</span>
-            </button>
-            <button class="seg-btn seg-optional" id="seg-optional" onclick="filterPicker('optional')">
-              Optional <span class="seg-count" id="count-optional">0</span>
-            </button>
-            <button class="seg-btn seg-not-needed" id="seg-not-needed" onclick="filterPicker('not-needed')">
-              Not needed <span class="seg-count" id="count-not-needed">0</span>
-            </button>
+          <span class="spec-explorer-server" id="spec-explorer-server"></span>
+        </div>
+        <div class="spec-explorer-body" id="spec-explorer-body"></div>
+        <div class="spec-explorer-footer">
+          <span class="spec-explorer-count" id="spec-explorer-count"></span>
+          <div class="spec-source-row">
+            <span class="spec-source-label">Source</span>
+            <input type="url" class="spec-source-url" id="spec-url" spellcheck="false">
+            <button class="spec-source-fetch" id="fetch-btn" onclick="fetchSpecLive()">↻ Reload</button>
           </div>
-          <div class="picker-list" id="picker-list"></div>
+          <div id="fetch-status" class="spec-fetch-status" style="display:none"></div>
         </div>
       </div>
     </div>
@@ -1504,6 +1605,23 @@
       screen4Sub: 'Running <code style="font-family:\'IBM Plex Mono\',monospace">openapi-mcp</code> against the enriched Klaviyo spec, scoped to the 10 confirmed operations. Behavioral warnings are embedded in tool descriptions.',
       screen5Desc: 'Real API calls against a Klaviyo free-tier account. Segment membership computed automatically — no add-member call.',
       defaultSpecUrl: 'https://raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/profiles.json',
+      specPreview: {
+        title: 'Klaviyo Profiles API',
+        version: '2024-10-15',
+        server: 'a.klaviyo.com',
+        accent: '#9B72FF',
+        serverBg: 'rgba(155,114,255,0.12)',
+        endpoints: [
+          { method: 'POST',   path: '/api/profiles',                      desc: 'Create Profile' },
+          { method: 'GET',    path: '/api/profiles',                      desc: 'Get Profiles' },
+          { method: 'GET',    path: '/api/profiles/{id}',                 desc: 'Get Profile' },
+          { method: 'PATCH',  path: '/api/profiles/{id}',                 desc: 'Update Profile' },
+          { method: 'POST',   path: '/api/profile-bulk-import-jobs',      desc: 'Bulk Import Profiles' },
+          { method: 'GET',    path: '/api/profile-bulk-import-jobs',      desc: 'Get Import Jobs' },
+          { method: 'DELETE', path: '/api/profiles/{id}/relationships/…', desc: 'Remove from Lists' },
+        ],
+        total: 54,
+      },
       specExamples: [
         { tag: 'Profiles', text: 'raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/profiles.json' },
         { tag: 'Lists', text: 'raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/lists.json' },
@@ -1576,6 +1694,23 @@
       screen4Sub: 'Running <code style="font-family:\'IBM Plex Mono\',monospace">openapi-mcp</code> against the enriched HubSpot spec, scoped to the 12 confirmed operations. Behavioral warnings are embedded in tool descriptions.',
       screen5Desc: 'Real API calls against a HubSpot free account. Creates a contact, creates a company, then associates them — demonstrating the cross-object linking model.',
       defaultSpecUrl: 'https://raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/Crm/Contacts.json',
+      specPreview: {
+        title: 'HubSpot CRM Contacts API',
+        version: 'v3',
+        server: 'api.hubapi.com',
+        accent: '#FF7A59',
+        serverBg: 'rgba(255,122,89,0.12)',
+        endpoints: [
+          { method: 'POST',   path: '/crm/v3/objects/contacts',              desc: 'Create Contact' },
+          { method: 'GET',    path: '/crm/v3/objects/contacts',              desc: 'List Contacts' },
+          { method: 'GET',    path: '/crm/v3/objects/contacts/{contactId}',  desc: 'Get Contact' },
+          { method: 'PATCH',  path: '/crm/v3/objects/contacts/{contactId}',  desc: 'Update Contact' },
+          { method: 'DELETE', path: '/crm/v3/objects/contacts/{contactId}',  desc: 'Archive Contact' },
+          { method: 'POST',   path: '/crm/v3/objects/contacts/batch/upsert', desc: 'Batch Upsert' },
+          { method: 'POST',   path: '/crm/v3/objects/contacts/search',       desc: 'Search Contacts' },
+        ],
+        total: 31,
+      },
       specExamples: [
         { tag: 'Contacts', text: 'raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/Crm/Contacts.json' },
         { tag: 'Lists', text: 'raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/Crm/Lists.json' },
@@ -1591,11 +1726,7 @@
     genDone = false;
     document.querySelectorAll('.platform-btn').forEach(b => b.classList.toggle('selected', b.dataset.platform === platform));
     renderScenarioButtons();
-    renderUrlExamples();
-    updatePasteExample();
-    setInputMode('url');
-    const urlInput = document.getElementById('spec-url');
-    if (urlInput) urlInput.value = PLATFORMS[platform].defaultSpecUrl;
+    renderSpecExplorer();
   }
 
   function renderScenarioButtons() {
@@ -1613,26 +1744,36 @@
       b.classList.toggle('selected', idx === i));
   }
 
-  function renderUrlExamples() {
-    const examples = PLATFORMS[selectedPlatform].specExamples;
-    const container = document.getElementById('url-examples');
-    if (!container) return;
-    container.innerHTML = examples.map(e => `
-      <div class="url-example" onclick="fillSpecUrl('https://${e.text}')">
-        <span class="url-example-tag">${e.tag}</span>
-        <span class="url-example-text">${e.text}</span>
+  function renderSpecExplorer() {
+    const p = PLATFORMS[selectedPlatform];
+    const preview = p.specPreview;
+    const explorer = document.getElementById('spec-explorer');
+    if (explorer) {
+      explorer.style.setProperty('--platform-accent', preview.accent);
+      explorer.style.setProperty('--platform-server-bg', preview.serverBg);
+    }
+    document.getElementById('spec-explorer-title').textContent = preview.title;
+    document.getElementById('spec-explorer-version').textContent = preview.version;
+    document.getElementById('spec-explorer-server').textContent = preview.server;
+    document.getElementById('spec-explorer-count').textContent =
+      `${preview.endpoints.length} endpoints shown · ${preview.total} total in spec`;
+    const urlInput = document.getElementById('spec-url');
+    if (urlInput) urlInput.value = p.defaultSpecUrl;
+    renderEndpointRows(preview.endpoints);
+    const status = document.getElementById('fetch-status');
+    if (status) status.style.display = 'none';
+  }
+
+  function renderEndpointRows(endpoints) {
+    const body = document.getElementById('spec-explorer-body');
+    if (!body) return;
+    body.innerHTML = endpoints.map((ep, i) => `
+      <div class="spec-endpoint-row" style="animation-delay:${i * 0.045}s">
+        <span class="http-badge http-${ep.method.toLowerCase()}">${ep.method}</span>
+        <span class="endpoint-path">${ep.path}</span>
+        <span class="endpoint-desc">${ep.desc}</span>
       </div>
     `).join('');
-  }
-
-  function fillSpecUrl(url) {
-    const input = document.getElementById('spec-url');
-    if (input) input.value = url;
-  }
-
-  function updatePasteExample() {
-    const ta = document.querySelector('.spec-input');
-    if (ta) ta.value = PLATFORMS[selectedPlatform].pasteExample;
   }
 
   function renderWarnings() {
@@ -1798,15 +1939,7 @@
   }
 
 
-  function setInputMode(mode) {
-    const tabs = document.querySelectorAll('.input-mode-tab');
-    tabs.forEach((t, i) => t.classList.toggle('active', (i === 0) === (mode === 'paste')));
-    document.getElementById('paste-mode').style.display = mode === 'paste' ? 'block' : 'none';
-    document.getElementById('url-mode').style.display   = mode === 'url'   ? 'block' : 'none';
-    // reset fetch status when switching
-    const status = document.getElementById('fetch-status');
-    status.style.display = 'none';
-  }
+  function setInputMode() { /* replaced by spec-explorer card */ }
 
   // ── SKILL RECOMMENDATIONS ──────────────────────────────────────
   // Keyed by filename stem (lowercase, no extension).
@@ -2010,31 +2143,24 @@
 
   function setFetchStatus(type, text) {
     const el = document.getElementById('fetch-status');
-    el.className = 'fetch-status ' + type;
+    if (!el) return;
+    el.className = 'spec-fetch-status ' + type;
     el.textContent = text;
-    el.style.display = 'block';
+    el.style.display = text ? 'block' : 'none';
   }
 
-  async function fetchSpec() {
+  async function fetchSpecLive() {
     const url = document.getElementById('spec-url').value.trim();
     const btn = document.getElementById('fetch-btn');
     if (!url) { setFetchStatus('error', 'Enter a URL first.'); return; }
 
-    document.getElementById('spec-picker').style.display = 'none';
     btn.disabled = true;
-
-    const match = url.match(GITHUB_REPO_RE);
+    btn.textContent = 'Loading…';
     try {
-      if (match) {
-        btn.textContent = 'Scanning…';
-        await discoverGitHubRepo(match[1], match[2]);
-      } else {
-        btn.textContent = 'Fetching…';
-        await directFetch(url);
-      }
+      await directFetch(url);
     } finally {
       btn.disabled = false;
-      btn.textContent = 'Fetch';
+      btn.textContent = '↻ Reload';
     }
   }
 
@@ -2242,35 +2368,39 @@
   }
 
   async function directFetch(url) {
-    const lower = url.toLowerCase();
-    let fmt = 'OpenAPI JSON';
-    if (lower.includes('.yaml') || lower.includes('.yml')) fmt = 'OpenAPI YAML';
-    else if (lower.includes('postman') || lower.includes('collection')) fmt = 'Postman collection';
-    else if (lower.includes('$discovery') || lower.includes('discovery')) fmt = '$discovery document';
-
-    setFetchStatus('loading', 'GET ' + url);
+    setFetchStatus('loading', 'Fetching…');
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + res.statusText);
       const text = await res.text();
-      let parsed, pathCount = 0, title = '', version = '';
-      try {
-        parsed = JSON.parse(text);
-        pathCount = parsed.paths ? Object.keys(parsed.paths).length : 0;
-        title   = parsed.info?.title   || '';
-        version = parsed.info?.version || '';
-      } catch (_) {}
-      const preview = parsed
-        ? JSON.stringify({ openapi: parsed.openapi, info: parsed.info, servers: parsed.servers }, null, 2)
-            + '\n\n// ... ' + pathCount + ' paths — scope filter will select ~10'
-        : text.slice(0, 600) + '\n\n// ... (truncated)';
-      setFetchStatus('success', `✓ ${fmt} loaded${title ? ' · ' + title : ''}${version ? ' · ' + version : ''}${pathCount ? ' · ' + pathCount + ' paths' : ''}`);
-      setTimeout(() => {
-        setInputMode('paste');
-        document.querySelector('textarea.spec-input').value = '// Fetched from: ' + url + '\n\n' + preview;
-      }, 500);
+      let parsed;
+      try { parsed = JSON.parse(text); } catch (_) {}
+      if (parsed && parsed.paths) {
+        const pathKeys = Object.keys(parsed.paths);
+        const endpoints = [];
+        for (const path of pathKeys) {
+          for (const [method, op] of Object.entries(parsed.paths[path])) {
+            if (['get','post','put','patch','delete'].includes(method)) {
+              endpoints.push({ method: method.toUpperCase(), path, desc: op.summary || op.operationId || '' });
+            }
+          }
+          if (endpoints.length >= 8) break;
+        }
+        const title   = parsed.info?.title   || document.getElementById('spec-explorer-title').textContent;
+        const version = parsed.info?.version || '';
+        const server  = (parsed.servers?.[0]?.url || '').replace(/^https?:\/\//, '');
+        document.getElementById('spec-explorer-title').textContent = title;
+        if (version) document.getElementById('spec-explorer-version').textContent = version;
+        if (server)  document.getElementById('spec-explorer-server').textContent  = server;
+        document.getElementById('spec-explorer-count').textContent =
+          `${endpoints.length} endpoints shown · ${pathKeys.length} total paths`;
+        renderEndpointRows(endpoints);
+        setFetchStatus('success', `✓ ${pathKeys.length} paths loaded`);
+      } else {
+        setFetchStatus('success', '✓ Spec loaded');
+      }
     } catch (err) {
-      setFetchStatus('error', '✗ Fetch failed: ' + err.message + '\nIf the URL requires auth, paste the spec directly instead.');
+      setFetchStatus('error', '✗ ' + err.message);
     }
   }
 
@@ -2325,10 +2455,7 @@
 
   // Initialize platform-driven UI on load
   renderScenarioButtons();
-  renderUrlExamples();
-  setInputMode('url');
-  const _initUrl = document.getElementById('spec-url');
-  if (_initUrl) _initUrl.value = PLATFORMS[selectedPlatform].defaultSpecUrl;
+  renderSpecExplorer();
 
   // init
   goTo(1);
