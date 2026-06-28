@@ -8,6 +8,9 @@ for both static (manually managed) and dynamic (rule-based) lists.
 In Klaviyo, these are called "Lists" and "Segments" respectively.
 In HubSpot, the distinction is the `processingType` field.
 
+**Auth:** `Authorization: Bearer {HUBSPOT_SERVICE_KEY}`
+**Base URL:** `https://api.hubapi.com`
+
 ---
 
 ## Create List — POST /crm/v3/lists

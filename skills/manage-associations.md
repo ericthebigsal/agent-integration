@@ -4,6 +4,9 @@ Associations link HubSpot CRM objects to each other: contacts to
 companies, contacts to deals, companies to deals, etc.
 There is no equivalent concept in Klaviyo.
 
+**Auth:** `Authorization: Bearer {HUBSPOT_SERVICE_KEY}`
+**Base URL:** `https://api.hubapi.com`
+
 ---
 
 ## Create Association — PUT /crm/v4/objects/{fromType}/{fromId}/associations/{toType}/{toId}
@@ -50,9 +53,10 @@ Returns all objects of `toType` associated with `fromId`.
 ⚠️ **Without a type ID** — deletes ALL association types between the two
 objects, not just the default one.
 
-To delete only a specific type:
+To delete only a specific association type, use the batch archive endpoint:
 ```
-DELETE /crm/v4/objects/{fromType}/{fromId}/associations/{toType}/{toId}/{associationTypeId}
+POST /crm/v4/associations/{fromObjectType}/{toObjectType}/batch/archive
+Body: [{"from": {"id": "{fromId}"}, "to": {"id": "{toId}"}, "types": [{"associationCategory": "HUBSPOT_DEFINED", "associationTypeId": 1}]}]
 ```
 
 ---

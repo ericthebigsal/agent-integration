@@ -68,7 +68,7 @@ Filter contacts by property values. Returns paginated results with a
 
 | Property | Value |
 |---|---|
-| Auth header | `Authorization: Bearer {token}` |
+| Auth header | `Authorization: Bearer {HUBSPOT_SERVICE_KEY}` |
 | Contact ID type | String (numeric string, e.g. "12345") |
 | Duplicate protection | Only via batch upsert with idProperty |
 | Hard delete | Not available — archive only |
