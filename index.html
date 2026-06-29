@@ -966,6 +966,54 @@
   .badge-warn      { background: var(--amber-light); color: var(--amber-text); }
   .badge-na        { background: #F1F5F9; color: #64748B; }
 
+  .status-badge.expandable { cursor: pointer; user-select: none; transition: opacity 0.15s; }
+  .status-badge.expandable:hover { opacity: 0.78; }
+  .detail-row { display: none; }
+  .detail-row.open { display: table-row; }
+  .detail-cell { padding: 0 !important; }
+  .detail-body {
+    padding: 16px 18px 18px;
+    background: var(--bg);
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--ink-muted);
+    border-top: 1px dashed var(--border);
+  }
+  .detail-point { margin-bottom: 10px; }
+  .detail-point:last-child { margin-bottom: 0; }
+  .detail-point code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    background: rgba(0,0,0,0.05);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  .detail-path {
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 8px;
+  }
+  .path-label {
+    font-size: 10px; font-weight: 700;
+    font-family: 'IBM Plex Mono', monospace;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--ink-faint); margin-bottom: 3px;
+  }
+  .path-endpoint {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; color: var(--ink); margin-bottom: 5px;
+  }
+  .path-desc { font-size: 12px; line-height: 1.55; }
+  .detail-callout {
+    margin-top: 10px; font-size: 12px; line-height: 1.55;
+    padding: 9px 12px;
+    background: var(--amber-light);
+    border-radius: 5px;
+    color: var(--ink-muted);
+  }
+
   /* ── REVIEW SCREEN ── */
   .warning-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
 
@@ -1402,13 +1450,29 @@
             <td class="op-name">Delete</td>
             <td class="ep">/api/data-privacy-deletion-jobs</td>
             <td class="ep">POST</td>
-            <td><span class="status-badge badge-warn">⚠ 2 warnings</span></td>
+            <td><span class="status-badge badge-warn expandable" data-detail="d-delete" onclick="toggleDetail('d-delete')">⚠ 2 warnings ▾</span></td>
+          </tr>
+          <tr class="detail-row" id="d-delete">
+            <td colspan="4" class="detail-cell">
+              <div class="detail-body">
+                <div class="detail-point"><strong>Async execution.</strong> This endpoint queues a deletion job — it does not delete the profile immediately. The profile remains readable until the job processes. There is no webhook; to confirm deletion you must poll the job status endpoint.</div>
+                <div class="detail-point"><strong>Irreversible and rate-limited.</strong> Once the job completes, there is no undo and no soft-delete state. Rate limited at 60 requests/minute — bulk deletes require batching and backoff.</div>
+              </div>
+            </td>
           </tr>
           <tr>
             <td class="op-name">Download all</td>
             <td class="ep">/api/profiles (paginated)</td>
             <td class="ep">GET</td>
-            <td><span class="status-badge badge-warn">⚠ multi-step</span></td>
+            <td><span class="status-badge badge-warn expandable" data-detail="d-download" onclick="toggleDetail('d-download')">⚠ multi-step ▾</span></td>
+          </tr>
+          <tr class="detail-row" id="d-download">
+            <td colspan="4" class="detail-cell">
+              <div class="detail-body">
+                <div class="detail-point"><strong>Cursor-based pagination required.</strong> <code>GET /api/profiles</code> returns one page of results plus a <code>next</code> cursor in the response links. The agent loops — passing each response's cursor into the next request — until <code>next</code> is null. A single call does not return all profiles.</div>
+                <div class="detail-point"><strong>Page size and rate limits apply.</strong> Default page size is 20; max is 100 via the <code>page[size]</code> parameter. Rate limits apply per-call, not per-profile — large exports require pacing.</div>
+              </div>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -1436,13 +1500,37 @@
             <td class="op-name">Add member</td>
             <td class="ep">/api/lists/{id}/subscribe</td>
             <td class="ep">POST</td>
-            <td><span class="status-badge badge-warn">⚠ 2 paths</span></td>
+            <td><span class="status-badge badge-warn expandable" data-detail="d-addmember" onclick="toggleDetail('d-addmember')">⚠ 2 paths ▾</span></td>
+          </tr>
+          <tr class="detail-row" id="d-addmember">
+            <td colspan="4" class="detail-cell">
+              <div class="detail-body">
+                <div class="detail-path">
+                  <div class="path-label">Path A — Direct add</div>
+                  <div class="path-endpoint">POST /api/lists/{id}/relationships/profiles</div>
+                  <div class="path-desc">Adds the profile to the list immediately. Bypasses Klaviyo's consent layer — does not check opt-in status, GDPR suppression, or double opt-in flow. Use only when consent is captured externally and you are certain the contact is eligible.</div>
+                </div>
+                <div class="detail-path">
+                  <div class="path-label">Path B — Consent-aware add (recommended)</div>
+                  <div class="path-endpoint">POST /api/profile-subscription-bulk-create-jobs</div>
+                  <div class="path-desc">Respects Klaviyo's opt-in flow, GDPR consent state, and global suppressions. If the profile is suppressed, the add is silently skipped — no error returned. Async job, not immediate. This is the safe default for any consent-sensitive marketing list.</div>
+                </div>
+                <div class="detail-callout"><strong>Where they intersect:</strong> both paths result in list membership if the add succeeds. <strong>Where they deviate:</strong> Path A ignores consent and is synchronous; Path B enforces it and is async. Adding a suppressed contact via Path A bypasses the suppression layer and may create a GDPR violation — the API will not prevent it.</div>
+              </div>
+            </td>
           </tr>
           <tr>
             <td class="op-name">Remove member</td>
             <td class="ep">/api/lists/{id}/relationships/profiles</td>
             <td class="ep">DELETE</td>
-            <td><span class="status-badge badge-warn">⚠ 1 warning</span></td>
+            <td><span class="status-badge badge-warn expandable" data-detail="d-removemember" onclick="toggleDetail('d-removemember')">⚠ 1 warning ▾</span></td>
+          </tr>
+          <tr class="detail-row" id="d-removemember">
+            <td colspan="4" class="detail-cell">
+              <div class="detail-body">
+                <div class="detail-point"><strong>List removal ≠ global unsubscribe.</strong> This endpoint removes the profile from this specific list but does not suppress the contact account-wide. The profile remains active and reachable by other lists, flows, and campaigns. To suppress all future marketing, a separate call to the profile suppression endpoint is required.</div>
+              </div>
+            </td>
           </tr>
           <tr>
             <td class="op-name">Delete list</td>
@@ -1470,7 +1558,15 @@
             <td class="op-name">Create segment</td>
             <td class="ep">/api/segments</td>
             <td class="ep">POST</td>
-            <td><span class="status-badge badge-warn">⚠ rate limit</span></td>
+            <td><span class="status-badge badge-warn expandable" data-detail="d-createseg" onclick="toggleDetail('d-createseg')">⚠ rate limit ▾</span></td>
+          </tr>
+          <tr class="detail-row" id="d-createseg">
+            <td colspan="4" class="detail-cell">
+              <div class="detail-body">
+                <div class="detail-point"><strong>Tight rate limit on segment creation.</strong> Klaviyo enforces a low rate limit on <code>POST /api/segments</code>. Creating one segment per user action is fine; programmatic bulk creation requires exponential backoff and is not designed for high-volume use.</div>
+                <div class="detail-point"><strong>API condition set is narrower than the UI.</strong> Some segment conditions available in the Klaviyo UI cannot be expressed through the API — the API supports a subset. Verify that your required conditions are API-expressible before building the workflow.</div>
+              </div>
+            </td>
           </tr>
           <tr>
             <td class="op-name">Read segment</td>
@@ -1482,7 +1578,16 @@
             <td class="op-name">Add/remove member</td>
             <td class="ep">—</td>
             <td class="ep">—</td>
-            <td><span class="status-badge badge-na">N/A by design</span></td>
+            <td><span class="status-badge badge-na expandable" data-detail="d-segmember" onclick="toggleDetail('d-segmember')">N/A by design ▾</span></td>
+          </tr>
+          <tr class="detail-row" id="d-segmember">
+            <td colspan="4" class="detail-cell">
+              <div class="detail-body">
+                <div class="detail-point"><strong>Segments are rule-based — membership is computed, not written.</strong> Klaviyo evaluates each profile continuously against the segment's condition definition. There is no endpoint to manually add or remove an individual profile. Membership is a derived state, not a relationship you can store directly.</div>
+                <div class="detail-point"><strong>To include a profile:</strong> ensure their attributes satisfy the segment's conditions (e.g., "purchased in last 30 days," "city = Seattle"). <strong>To exclude a profile:</strong> update their attributes so they no longer match, or tighten the segment's rule definition. This is intentional — it is what makes segments self-updating without manual maintenance.</div>
+                <div class="detail-point"><strong>Contrast with Lists:</strong> Lists support direct membership management via <code>/api/lists/{id}/relationships/profiles</code>. If the workflow requires adding specific contacts by profile ID, use a List rather than a Segment.</div>
+              </div>
+            </td>
           </tr>
         </tbody>
       </table>
@@ -2014,6 +2119,14 @@
   function isCached() { return !!specCache[cacheKey()]; }
   function platformFetchCount(platform) {
     return PLATFORMS[platform].scenarios.filter((_, i) => specCache[`${platform}-${i}`]).length;
+  }
+
+  function toggleDetail(id) {
+    const row = document.getElementById(id);
+    if (!row) return;
+    const isOpen = row.classList.toggle('open');
+    const badge = document.querySelector(`[data-detail="${id}"]`);
+    if (badge) badge.textContent = badge.textContent.replace(isOpen ? '▾' : '▴', isOpen ? '▴' : '▾');
   }
 
   function updatePlatformIndicators() {
