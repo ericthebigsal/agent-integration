@@ -561,6 +561,12 @@
   }
   .btn-fetch-spec:hover    { opacity: 0.87; }
   .btn-fetch-spec:disabled { opacity: 0.45; cursor: not-allowed; }
+  .scenario-blurb {
+    padding: 22px 16px 18px;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--ink-muted);
+  }
 
   /* ── FILE PICKER ── */
   .spec-picker {
@@ -1581,6 +1587,7 @@
           name: 'Manage Profiles',
           skillLabel: 'Skill 1',
           description: 'Upsert, delete, and export contact profiles',
+          blurb: 'Sync customer records from your data platform into Klaviyo — upsert on first touch, update as data changes, delete via GDPR-compliant async jobs. The profile is the central object: every list membership and segment match is anchored to it.',
           specUrl: 'https://raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/profiles.json',
           requiredOps: [
             { method: 'POST',   path: '/api/profiles',     label: 'Upsert / Create Profile' },
@@ -1603,6 +1610,7 @@
           name: 'Manage Audiences — Lists',
           skillLabel: 'Skill 2',
           description: 'Add, remove, and subscribe contacts to lists',
+          blurb: 'Build and maintain the static lists your flows and campaigns target. Two paths to add a member — one is consent-aware, one is immediate — and they look identical in the response but carry very different compliance implications.',
           specUrl: 'https://raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/lists.json',
           requiredOps: [
             { method: 'POST',   path: '/api/lists',                             label: 'Create List' },
@@ -1627,6 +1635,7 @@
           name: 'Manage Segments',
           skillLabel: 'Skill 3',
           description: 'Create and read rule-based audience segments',
+          blurb: 'Create rule-based audiences that update automatically as profiles change — no manual membership writes. Segments are computed continuously; if you need to control exactly who\'s included, use a list instead.',
           specUrl: 'https://raw.githubusercontent.com/klaviyo/openapi/main/openapi/stable/categories/segments.json',
           requiredOps: [
             { method: 'POST',   path: '/api/segments',                             label: 'Create Segment' },
@@ -1692,6 +1701,7 @@
           name: 'Manage Contacts',
           skillLabel: 'Skill 4',
           description: 'Create, upsert, update, and archive contacts',
+          blurb: 'Create and maintain contact records in HubSpot CRM. Single-object create silently duplicates on an existing email — use batch upsert with idProperty=email for safe deduplication at any volume.',
           specUrl: 'https://raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/CRM/Contacts/Rollouts/424/v3/contacts.json',
           requiredOps: [
             { method: 'POST',   path: '/crm/v3/objects/contacts',                 label: 'Create Contact' },
@@ -1718,6 +1728,7 @@
           name: 'Manage Lists',
           skillLabel: 'Skill 5',
           description: 'Create and manage static and dynamic contact lists',
+          blurb: 'Organize contacts into lists for targeting, workflow enrollment, and segmentation. processingType — MANUAL or DYNAMIC — is permanent at creation and determines whether membership can be written directly.',
           specUrl: 'https://raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/CRM/Lists/Rollouts/144891/v3/lists.json',
           requiredOps: [
             { method: 'POST',   path: '/crm/v3/lists',                                     label: 'Create List' },
@@ -1743,6 +1754,7 @@
           name: 'Manage Associations',
           skillLabel: 'Skill 6',
           description: 'Link contacts to companies, deals, and tickets',
+          blurb: 'Link contacts to companies, deals, and tickets — the relationship layer that makes CRM data useful. Association type IDs are magic numbers; omitting a type ID on delete removes every association between the two objects, not just the one you intended.',
           specUrl: 'https://raw.githubusercontent.com/HubSpot/HubSpot-public-api-spec-collection/main/PublicApiSpecs/CRM/Associations/Rollouts/120891/v3/associations.json',
           requiredOps: [
             { method: 'POST', path: '/crm/v3/associations/{fromObjectType}/{toObjectType}/batch/create',  label: 'Create Associations' },
@@ -1840,21 +1852,23 @@
     const fetchBtn = document.getElementById('btn-fetch-spec');
     if (fetchBtn) fetchBtn.style.background = preview.accent;
 
-    document.getElementById('spec-explorer-title').textContent = preview.title;
-    document.getElementById('spec-explorer-version').textContent = preview.version;
-    document.getElementById('spec-explorer-server').textContent = preview.server;
-
     const specUrl = scenario?.specUrl || p.defaultSpecUrl;
     const urlInput = document.getElementById('spec-url');
     if (urlInput) urlInput.value = specUrl;
 
-    const requiredOps = scenario?.requiredOps || [];
-    document.getElementById('spec-explorer-count').textContent =
-      `${requiredOps.length} required operations · click Fetch to validate`;
-    renderRequiredOps(requiredOps, null);
-
     const status = document.getElementById('fetch-status');
     if (status) status.style.display = 'none';
+
+    if (!screen1Fetched) {
+      // Before fetch: show scenario context, no API details
+      document.getElementById('spec-explorer-title').textContent = scenario?.name || '';
+      document.getElementById('spec-explorer-version').textContent = '';
+      document.getElementById('spec-explorer-server').textContent = '';
+      document.getElementById('spec-explorer-count').textContent = '';
+      const body = document.getElementById('spec-explorer-body');
+      if (body) body.innerHTML = `<div class="scenario-blurb">${scenario?.blurb || scenario?.description || ''}</div>`;
+    }
+    // After fetch: directFetch() has already written the validated API data — don't overwrite it
   }
 
   function renderEndpointRows(endpoints) {
