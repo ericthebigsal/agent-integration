@@ -541,16 +541,16 @@
     transition: background 0.2s, color 0.2s;
   }
   .ep-status-found   { background: rgba(16,185,129,0.22); color: #34D399; }
-  .ep-status-missing { background: rgba(239,68,68,0.15);  color: #F87171; }
+  .ep-status-missing { background: rgba(245,158,11,0.18); color: #FBBF24; }
   .spec-endpoint-row.found   { background: rgba(16,185,129,0.05); }
-  .spec-endpoint-row.missing { opacity: 0.65; }
-  .spec-endpoint-row.missing .endpoint-path { text-decoration: line-through; color: var(--ink-faint); }
-  .ep-missing-note {
+  .spec-endpoint-row.missing { background: rgba(255,255,255,0.02); align-items: flex-start; padding-top: 8px; padding-bottom: 8px; }
+  .ep-capability-label { font-size: 12px; font-weight: 500; color: var(--ink-muted); flex-shrink: 0; }
+  .ep-capability-note {
     flex: 0 0 100%;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 9px; font-style: italic;
+    font-size: 11px;
+    line-height: 1.55;
     color: var(--ink-faint);
-    padding: 1px 0 3px 70px;
+    padding: 4px 0 2px 24px;
   }
   .btn-fetch-spec {
     width: 100%; margin-top: 10px; padding: 12px;
@@ -1594,7 +1594,7 @@
             { method: 'GET',    path: '/api/profiles',     label: 'List Profiles' },
             { method: 'GET',    path: '/api/profiles/{id}', label: 'Get Profile' },
             { method: 'PATCH',  path: '/api/profiles/{id}', label: 'Update Profile' },
-            { method: 'DELETE', path: '/api/profiles/{id}', label: 'Delete Profile (direct)', missingNote: '✗ Not here — use POST /api/data-privacy-deletion-jobs (async, irreversible, 60/min limit)' },
+            { method: 'DELETE', path: '/api/profiles/{id}', label: 'Delete Profile', missingNote: 'Deletion routes through the Data Privacy API — POST /api/data-privacy-deletion-jobs. The job is async: the profile isn\'t gone immediately. No undo, no soft delete. Rate limited at 60/min.' },
           ],
           warnings: [
             { sev: 'sev-red', icon: '🔴', title: 'Profile delete is async and irreversible',
@@ -1617,7 +1617,7 @@
             { method: 'POST',   path: '/api/lists/{id}/relationships/profiles', label: 'Add Members (direct, no consent)' },
             { method: 'DELETE', path: '/api/lists/{id}/relationships/profiles', label: 'Remove Members' },
             { method: 'DELETE', path: '/api/lists/{id}',                        label: 'Delete List' },
-            { method: 'POST',   path: '/api/lists/{id}/subscribe',              label: 'Subscribe (consent-aware)', missingNote: '✗ Not in lists spec — use POST /api/profile-subscription-bulk-create-jobs for GDPR-aware adds' },
+            { method: 'POST',   path: '/api/lists/{id}/subscribe',              label: 'Subscribe (consent-aware)', missingNote: 'Not in the lists spec. Consent-aware adds go through POST /api/profile-subscription-bulk-create-jobs in the Profiles spec. It respects double opt-in and GDPR consent state. The direct add-member endpoint skips consent tracking.' },
           ],
           warnings: [
             { sev: 'sev-red', icon: '🔴', title: 'Two list add-member paths — different consent outcomes',
@@ -1641,8 +1641,8 @@
             { method: 'POST',   path: '/api/segments',                             label: 'Create Segment' },
             { method: 'GET',    path: '/api/segments/{id}',                        label: 'Get Segment' },
             { method: 'DELETE', path: '/api/segments/{id}',                        label: 'Delete Segment' },
-            { method: 'POST',   path: '/api/segments/{id}/relationships/profiles', label: 'Add Members', missingNote: '✗ Not in spec — segment membership is computed from rules, not writable' },
-            { method: 'DELETE', path: '/api/segments/{id}/relationships/profiles', label: 'Remove Members', missingNote: '✗ Not in spec — change the segment rule to affect who matches' },
+            { method: 'POST',   path: '/api/segments/{id}/relationships/profiles', label: 'Add a Profile to Segment', missingNote: 'Cannot be done directly. Klaviyo computes segment membership continuously based on profile attributes. To include someone, ensure their profile data matches the segment\'s rule conditions.' },
+            { method: 'DELETE', path: '/api/segments/{id}/relationships/profiles', label: 'Remove a Profile from Segment', missingNote: 'Cannot be done directly. To exclude a profile, update their attributes so they no longer match the rule — or tighten the rule definition itself.' },
           ],
           warnings: [
             { sev: 'sev-red', icon: '🔴', title: 'Segment creation: 100/day hard daily cap',
@@ -1736,7 +1736,7 @@
             { method: 'DELETE', path: '/crm/v3/lists/{listId}',                             label: 'Delete List' },
             { method: 'PUT',    path: '/crm/v3/lists/{listId}/memberships/add-and-remove',  label: 'Manage Members' },
             { method: 'DELETE', path: '/crm/v3/lists/{listId}/memberships',                 label: 'Clear All Members' },
-            { method: 'PATCH',  path: '/crm/v3/lists/{listId}',                             label: 'Update List Properties', missingNote: '✗ No direct PATCH endpoint — use PUT update-list-name or update-list-filters' },
+            { method: 'PATCH',  path: '/crm/v3/lists/{listId}',                             label: 'Update List Properties', missingNote: 'No general update endpoint. To rename: PUT /crm/v3/lists/{listId}/update-list-name. To change filter rules on a DYNAMIC list: PUT /crm/v3/lists/{listId}/update-list-filters.' },
           ],
           warnings: [
             { sev: 'sev-red', icon: '🔴', title: 'processingType is permanent — MANUAL vs DYNAMIC cannot be changed',
@@ -1905,20 +1905,29 @@
       if (specPaths !== null) {
         state = opExistsInSpec(op.method, op.path, specPaths) ? 'found' : 'missing';
       }
-      const icon = state === 'found' ? '✓' : '✗';
-      const statusCls = state === 'found' ? 'ep-status-found' : state === 'missing' ? 'ep-status-missing' : '';
-      const statusEl = state === 'pending' ? '' : `<span class="ep-status ${statusCls}">${icon}</span>`;
-      const note = (state === 'missing' && op.missingNote)
-        ? `<span class="ep-missing-note">${op.missingNote}</span>` : '';
-      return `
-        <div class="spec-endpoint-row ${state}" style="animation-delay:${i * 0.045}s">
-          ${statusEl}
-          <span class="http-badge http-${op.method.toLowerCase()}">${op.method}</span>
-          <span class="endpoint-path">${op.path}</span>
-          <span class="endpoint-desc">${op.label}</span>
-          ${note}
-        </div>
-      `;
+      if (state === 'found') {
+        return `
+          <div class="spec-endpoint-row found" style="animation-delay:${i * 0.045}s">
+            <span class="ep-status ep-status-found">✓</span>
+            <span class="http-badge http-${op.method.toLowerCase()}">${op.method}</span>
+            <span class="endpoint-path">${op.path}</span>
+            <span class="endpoint-desc">${op.label}</span>
+          </div>`;
+      } else if (state === 'missing') {
+        return `
+          <div class="spec-endpoint-row missing" style="animation-delay:${i * 0.045}s">
+            <span class="ep-status ep-status-missing">→</span>
+            <span class="ep-capability-label">${op.label}</span>
+            ${op.missingNote ? `<span class="ep-capability-note">${op.missingNote}</span>` : ''}
+          </div>`;
+      } else {
+        return `
+          <div class="spec-endpoint-row pending" style="animation-delay:${i * 0.045}s">
+            <span class="http-badge http-${op.method.toLowerCase()}">${op.method}</span>
+            <span class="endpoint-path">${op.path}</span>
+            <span class="endpoint-desc">${op.label}</span>
+          </div>`;
+      }
     }).join('');
   }
 
