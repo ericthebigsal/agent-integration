@@ -1316,8 +1316,6 @@
     </div>
 
     <div class="field-group">
-      <span class="field-label">Spec source</span>
-
       <!-- SPEC EXPLORER CARD -->
       <div class="spec-explorer" id="spec-explorer">
         <div class="spec-explorer-header">
@@ -1805,6 +1803,8 @@
     selectedPlatform = platform;
     selectedScenarioIndex = 0;
     genDone = false;
+    screen1Fetched = false;
+    document.getElementById('next-btn').disabled = true;
     document.querySelectorAll('.platform-btn').forEach(b => b.classList.toggle('selected', b.dataset.platform === platform));
     renderScenarioButtons();
     renderSpecExplorer();
@@ -1821,6 +1821,8 @@
 
   function selectScenarioIndex(i) {
     selectedScenarioIndex = i;
+    screen1Fetched = false;
+    document.getElementById('next-btn').disabled = true;
     document.querySelectorAll('#scenario-toggle .toggle-btn').forEach((b, idx) =>
       b.classList.toggle('selected', idx === i));
     renderSpecExplorer();
@@ -1951,6 +1953,7 @@
   let current = 1;
   const total = 5;
   let genDone = false;
+  let screen1Fetched = false;
 
   function goTo(n) {
     if (n < 1 || n > total) return;
@@ -1980,6 +1983,10 @@
     document.getElementById('next-btn').style.display    = n === total ? 'none' : 'inline-flex';
     document.getElementById('restart-btn').style.display = n === total ? 'inline-flex' : 'none';
     document.getElementById('step-count').textContent = 'Step ' + n + ' of ' + total;
+
+    // screen 1: gate Continue until spec is fetched
+    if (n === 1) document.getElementById('next-btn').disabled = !screen1Fetched;
+    else         document.getElementById('next-btn').disabled = false;
 
     // screen 3: render warnings (generates checkboxes), then check state
     if (n === 3) { renderWarnings(); checkAcks(); }
@@ -2527,6 +2534,8 @@
             ? `✓ ${foundCount} confirmed · ${missingCount} intentionally absent (see ✗ below)`
             : `✓ All ${foundCount} required operations confirmed`;
           setFetchStatus('success', msg);
+          screen1Fetched = true;
+          if (current === 1) document.getElementById('next-btn').disabled = false;
         } else {
           const endpoints = [];
           for (const path of pathKeys) {
