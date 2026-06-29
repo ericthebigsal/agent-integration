@@ -571,8 +571,7 @@
     vertical-align: middle;
     position: relative; top: -1px;
   }
-  .platform-fetch-dot.partial  { background: rgba(245,158,11,0.75); }
-  .platform-fetch-dot.complete { background: rgba(16,185,129,0.85); }
+  .platform-fetch-dot.fetched  { background: rgba(16,185,129,0.85); }
   .scenario-blurb {
     padding: 22px 16px 18px;
     font-size: 13px;
@@ -1833,6 +1832,10 @@
     renderScenarioButtons();
     renderSpecExplorer();
     updateFetchButton();
+    // Auto-fetch scenario 0 if this platform has been fetched before but not this scenario
+    if (!screen1Fetched && platformFetchCount(platform) > 0) {
+      fetchSpecLive();
+    }
   }
 
   function renderScenarioButtons() {
@@ -1852,6 +1855,10 @@
       b.classList.toggle('selected', idx === i));
     renderSpecExplorer();
     updateFetchButton();
+    // Auto-fetch if platform has been fetched before but this scenario hasn't yet
+    if (!screen1Fetched && platformFetchCount(selectedPlatform) > 0) {
+      fetchSpecLive();
+    }
   }
 
   function renderSpecExplorer() {
@@ -2013,13 +2020,9 @@
     document.querySelectorAll('.platform-btn').forEach(btn => {
       const p = btn.dataset.platform;
       if (!PLATFORMS[p]) return;
-      const total = PLATFORMS[p].scenarios.length;
-      const fetched = platformFetchCount(p);
       const dot = btn.querySelector('.platform-fetch-dot');
       if (!dot) return;
-      dot.classList.remove('partial', 'complete');
-      if (fetched > 0 && fetched < total) dot.classList.add('partial');
-      else if (fetched === total) dot.classList.add('complete');
+      dot.classList.toggle('fetched', platformFetchCount(p) > 0);
     });
   }
 
