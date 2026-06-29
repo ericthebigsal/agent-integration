@@ -236,6 +236,8 @@
     border-color: var(--ink-muted);
     color: var(--ink);
   }
+  .toggle-btn[disabled] { opacity: 0.38; cursor: not-allowed; }
+  .toggle-btn[disabled]:hover { border-color: var(--border); color: var(--ink-muted); }
 
   textarea.spec-input {
     width: 100%;
@@ -1413,6 +1415,13 @@
       <div class="screen-sub">Spec endpoints aligned against domain priors. Multi-step operations identified. Warnings queued for review.</div>
     </div>
 
+    <div class="field-group" style="margin-bottom: 20px;">
+      <span class="field-label">Platform</span>
+      <div class="toggle-group" id="s2-platform-toggle"></div>
+    </div>
+
+    <div id="s2-klaviyo" class="s2-content">
+
     <div class="stat-row">
       <div class="stat-chip">
         <div class="stat-num">10</div>
@@ -1592,6 +1601,207 @@
         </tbody>
       </table>
     </div>
+
+    </div><!-- /s2-klaviyo -->
+
+    <div id="s2-hubspot" class="s2-content" style="display:none">
+
+      <div class="stat-row">
+        <div class="stat-chip">
+          <div class="stat-num">12</div>
+          <div class="stat-label">operations confirmed</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-num">7</div>
+          <div class="stat-label">skill-sourced warnings</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-num">0</div>
+          <div class="stat-label">not-applicable-by-design</div>
+        </div>
+      </div>
+
+      <div class="match-section">
+        <div class="match-section-label">Manage Contacts</div>
+        <table class="match-table">
+          <thead>
+            <tr>
+              <th>Operation</th>
+              <th>Endpoint</th>
+              <th>Method</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="op-name">Create / Upsert</td>
+              <td class="ep">/crm/v3/objects/contacts</td>
+              <td class="ep">POST</td>
+              <td><span class="status-badge badge-warn expandable" data-detail="hs-create" onclick="toggleDetail('hs-create')">⚠ 1 warning ▾</span></td>
+            </tr>
+            <tr class="detail-row" id="hs-create">
+              <td colspan="4" class="detail-cell">
+                <div class="detail-body">
+                  <div class="detail-point"><strong>Silent duplicate on existing email.</strong> POST creates a new contact record every time — no 409 or dedup on email address. An existing contact at the same email becomes a duplicate in the CRM. Use the batch upsert endpoint with <code>idProperty=email</code> for safe dedup at any volume.</div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="op-name">Update contact</td>
+              <td class="ep">/crm/v3/objects/contacts/{contactId}</td>
+              <td class="ep">PATCH</td>
+              <td><span class="status-badge badge-confirmed">✓ confirmed</span></td>
+            </tr>
+            <tr>
+              <td class="op-name">Archive contact</td>
+              <td class="ep">/crm/v3/objects/contacts/{contactId}</td>
+              <td class="ep">DELETE</td>
+              <td><span class="status-badge badge-warn expandable" data-detail="hs-archive" onclick="toggleDetail('hs-archive')">⚠ 1 warning ▾</span></td>
+            </tr>
+            <tr class="detail-row" id="hs-archive">
+              <td colspan="4" class="detail-cell">
+                <div class="detail-body">
+                  <div class="detail-point"><strong>Archive ≠ hard delete.</strong> Archived contacts are hidden from search and list views by default but remain in the database. There is no permanent removal endpoint via CRM v3. If GDPR erasure is required, use the GDPR Delete endpoint under HubSpot's privacy compliance API instead.</div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="op-name">List / Search</td>
+              <td class="ep">/crm/v3/objects/contacts</td>
+              <td class="ep">GET</td>
+              <td><span class="status-badge badge-confirmed">✓ confirmed</span></td>
+            </tr>
+            <tr>
+              <td class="op-name">Batch upsert</td>
+              <td class="ep">/crm/v3/objects/contacts/batch/upsert</td>
+              <td class="ep">POST</td>
+              <td><span class="status-badge badge-confirmed">✓ confirmed</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="match-section">
+        <div class="match-section-label">Manage Lists</div>
+        <table class="match-table">
+          <thead>
+            <tr>
+              <th>Operation</th>
+              <th>Endpoint</th>
+              <th>Method</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="op-name">Create list</td>
+              <td class="ep">/crm/v3/lists</td>
+              <td class="ep">POST</td>
+              <td><span class="status-badge badge-warn expandable" data-detail="hs-create-list" onclick="toggleDetail('hs-create-list')">⚠ 1 warning ▾</span></td>
+            </tr>
+            <tr class="detail-row" id="hs-create-list">
+              <td colspan="4" class="detail-cell">
+                <div class="detail-body">
+                  <div class="detail-point"><strong>processingType is permanent.</strong> MANUAL lists accept direct member writes via the memberships endpoint. DYNAMIC lists compute membership from a filter rule — member writes are silently ignored. This is set at creation and cannot be changed. Design for the list type before writing the create call.</div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="op-name">Manage members</td>
+              <td class="ep">/crm/v3/lists/{listId}/memberships</td>
+              <td class="ep">PUT</td>
+              <td><span class="status-badge badge-warn expandable" data-detail="hs-addmember" onclick="toggleDetail('hs-addmember')">⚠ 1 warning ▾</span></td>
+            </tr>
+            <tr class="detail-row" id="hs-addmember">
+              <td colspan="4" class="detail-cell">
+                <div class="detail-body">
+                  <div class="detail-point"><strong>Silent 200 on DYNAMIC lists.</strong> Sending a PUT to the memberships endpoint on a DYNAMIC list returns HTTP 200 with no error — and does nothing. The contact is not added. Always check the list's processingType before writing members to avoid silent no-ops in pipelines that rely on write confirmation.</div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="op-name">Delete list</td>
+              <td class="ep">/crm/v3/lists/{listId}</td>
+              <td class="ep">DELETE</td>
+              <td><span class="status-badge badge-confirmed">✓ confirmed</span></td>
+            </tr>
+            <tr>
+              <td class="op-name">Update list</td>
+              <td class="ep">—</td>
+              <td class="ep">—</td>
+              <td><span class="status-badge badge-warn expandable" data-detail="hs-updatelist" onclick="toggleDetail('hs-updatelist')">⚠ 2 paths ▾</span></td>
+            </tr>
+            <tr class="detail-row" id="hs-updatelist">
+              <td colspan="4" class="detail-cell">
+                <div class="detail-body">
+                  <div class="detail-path">
+                    <div class="path-label">Path A — Rename</div>
+                    <div class="path-endpoint">PUT /crm/v3/lists/{listId}/update-list-name</div>
+                    <div class="path-desc">Updates the list's display name only. Works for both MANUAL and DYNAMIC lists.</div>
+                  </div>
+                  <div class="detail-path">
+                    <div class="path-label">Path B — Update filter rules</div>
+                    <div class="path-endpoint">PUT /crm/v3/lists/{listId}/update-list-filters</div>
+                    <div class="path-desc">Updates the filter condition set that determines DYNAMIC list membership. Only valid for DYNAMIC lists — has no effect on MANUAL lists.</div>
+                  </div>
+                  <div class="detail-callout"><strong>No general PATCH endpoint.</strong> Name and filter rules are updated through two separate endpoints. For MANUAL lists, only the name can be changed. For DYNAMIC lists, changing filters changes computed membership — it does not add contacts manually.</div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="match-section">
+        <div class="match-section-label">Manage Associations</div>
+        <table class="match-table">
+          <thead>
+            <tr>
+              <th>Operation</th>
+              <th>Endpoint</th>
+              <th>Method</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="op-name">Create associations</td>
+              <td class="ep">/crm/v4/associations/…/batch/create</td>
+              <td class="ep">POST</td>
+              <td><span class="status-badge badge-warn expandable" data-detail="hs-create-assoc" onclick="toggleDetail('hs-create-assoc')">⚠ 1 warning ▾</span></td>
+            </tr>
+            <tr class="detail-row" id="hs-create-assoc">
+              <td colspan="4" class="detail-cell">
+                <div class="detail-body">
+                  <div class="detail-point"><strong>Association type IDs are magic numbers.</strong> contact→company = 1, contact→deal = 3, contact→ticket = 16. These are not returned by the API in human-readable form. The v4 API provides a <code>/types</code> endpoint to enumerate them programmatically — use it to handle custom association types without hardcoding numeric IDs.</div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td class="op-name">Read associations</td>
+              <td class="ep">/crm/v4/associations/…/batch/read</td>
+              <td class="ep">POST</td>
+              <td><span class="status-badge badge-confirmed">✓ confirmed</span></td>
+            </tr>
+            <tr>
+              <td class="op-name">Delete associations</td>
+              <td class="ep">/crm/v4/associations/…/batch/archive</td>
+              <td class="ep">POST</td>
+              <td><span class="status-badge badge-warn expandable" data-detail="hs-delete-assoc" onclick="toggleDetail('hs-delete-assoc')">⚠ 1 warning ▾</span></td>
+            </tr>
+            <tr class="detail-row" id="hs-delete-assoc">
+              <td colspan="4" class="detail-cell">
+                <div class="detail-body">
+                  <div class="detail-point"><strong>Deleting without a type ID removes ALL associations between two objects.</strong> Include <code>associationTypeId</code> in the request body to scope the delete to a specific relationship type. Omitting it removes every association type between that pair — there is no confirmation step and no undo.</div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div><!-- /s2-hubspot -->
+
   </div>
 
   <!-- ── SCREEN 3: HITL REVIEW ── -->
@@ -2114,6 +2324,7 @@
   let genDone = false;
   let screen1Fetched = false;
   const specCache = {};
+  let screen2Platform = 'klaviyo';
 
   function cacheKey() { return `${selectedPlatform}-${selectedScenarioIndex}`; }
   function isCached() { return !!specCache[cacheKey()]; }
@@ -2156,6 +2367,45 @@
     }
   }
 
+  function platformLabel(key) {
+    return { klaviyo: 'Klaviyo', hubspot: 'HubSpot' }[key] || key;
+  }
+
+  function initScreen2() {
+    screen2Platform = selectedPlatform;
+    if (platformFetchCount(screen2Platform) === 0) {
+      const first = Object.keys(PLATFORMS).find(p => platformFetchCount(p) > 0);
+      if (first) screen2Platform = first;
+    }
+    renderScreen2PlatformToggle();
+    showScreen2Content(screen2Platform);
+  }
+
+  function renderScreen2PlatformToggle() {
+    const container = document.getElementById('s2-platform-toggle');
+    if (!container) return;
+    container.innerHTML = Object.entries(PLATFORMS).map(([key]) => {
+      const fetched = platformFetchCount(key) > 0;
+      const sel = (key === screen2Platform && fetched) ? ' selected' : '';
+      const dis = fetched ? '' : ' disabled';
+      const tip = fetched ? '' : ` title="Go back to Step 1 to fetch the ${platformLabel(key)} spec first"`;
+      const onclick = fetched ? ` onclick="switchScreen2Platform('${key}')"` : '';
+      return `<button class="toggle-btn${sel}"${dis}${tip}${onclick}>${platformLabel(key)}</button>`;
+    }).join('');
+  }
+
+  function switchScreen2Platform(platform) {
+    if (platformFetchCount(platform) === 0) return;
+    screen2Platform = platform;
+    renderScreen2PlatformToggle();
+    showScreen2Content(platform);
+  }
+
+  function showScreen2Content(platform) {
+    document.querySelectorAll('.s2-content').forEach(d =>
+      d.style.display = d.id === 's2-' + platform ? 'block' : 'none');
+  }
+
   function goTo(n) {
     if (n < 1 || n > total) return;
 
@@ -2188,6 +2438,9 @@
     // screen 1: gate Continue until spec is fetched
     if (n === 1) document.getElementById('next-btn').disabled = !screen1Fetched;
     else         document.getElementById('next-btn').disabled = false;
+
+    // screen 2: initialize platform toggle
+    if (n === 2) initScreen2();
 
     // screen 3: render warnings (generates checkboxes), then check state
     if (n === 3) { renderWarnings(); checkAcks(); }
