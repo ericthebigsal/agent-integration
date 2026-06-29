@@ -1297,7 +1297,7 @@
     <div class="screen-header">
       <div class="screen-eyebrow">Step 01 of 05</div>
       <div class="screen-title">Load your API spec</div>
-      <div class="screen-sub">Select the integration scenario, then paste or upload a structured spec. No prose scraping — OpenAPI, Postman, or <code style="font-family:'IBM Plex Mono',monospace">$discovery</code> only.</div>
+      <div class="screen-sub">Select a platform and scenario, then fetch the spec. The agent checks which required operations exist and flags what's absent — and why.</div>
     </div>
 
     <div class="field-group">
@@ -1891,13 +1891,14 @@
       if (specPaths !== null) {
         state = opExistsInSpec(op.method, op.path, specPaths) ? 'found' : 'missing';
       }
-      const icon = state === 'found' ? '✓' : state === 'missing' ? '✗' : '·';
+      const icon = state === 'found' ? '✓' : '✗';
       const statusCls = state === 'found' ? 'ep-status-found' : state === 'missing' ? 'ep-status-missing' : '';
+      const statusEl = state === 'pending' ? '' : `<span class="ep-status ${statusCls}">${icon}</span>`;
       const note = (state === 'missing' && op.missingNote)
         ? `<span class="ep-missing-note">${op.missingNote}</span>` : '';
       return `
         <div class="spec-endpoint-row ${state}" style="animation-delay:${i * 0.045}s">
-          <span class="ep-status ${statusCls}">${icon}</span>
+          ${statusEl}
           <span class="http-badge http-${op.method.toLowerCase()}">${op.method}</span>
           <span class="endpoint-path">${op.path}</span>
           <span class="endpoint-desc">${op.label}</span>
