@@ -555,12 +555,24 @@
   .btn-fetch-spec {
     width: 100%; margin-top: 10px; padding: 12px;
     background: #9B72FF; color: #fff;
-    border: none; border-radius: 8px; cursor: pointer;
+    border: 1.5px solid transparent; border-radius: 8px; cursor: pointer;
     font-size: 13px; font-weight: 600; letter-spacing: 0.03em;
-    transition: opacity 0.15s;
+    transition: opacity 0.15s, background 0.2s, color 0.2s, border-color 0.2s;
   }
   .btn-fetch-spec:hover    { opacity: 0.87; }
   .btn-fetch-spec:disabled { opacity: 0.45; cursor: not-allowed; }
+  .platform-fetch-dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    margin-left: 7px;
+    background: transparent;
+    transition: background 0.3s;
+    vertical-align: middle;
+    position: relative; top: -1px;
+  }
+  .platform-fetch-dot.partial  { background: rgba(245,158,11,0.75); }
+  .platform-fetch-dot.complete { background: rgba(16,185,129,0.85); }
   .scenario-blurb {
     padding: 22px 16px 18px;
     font-size: 13px;
@@ -1309,8 +1321,8 @@
     <div class="field-group">
       <span class="field-label">Platform</span>
       <div class="toggle-group">
-        <button class="platform-btn toggle-btn selected" data-platform="klaviyo" onclick="switchPlatform('klaviyo')">Klaviyo</button>
-        <button class="platform-btn toggle-btn" data-platform="hubspot" onclick="switchPlatform('hubspot')">HubSpot</button>
+        <button class="platform-btn toggle-btn selected" data-platform="klaviyo" onclick="switchPlatform('klaviyo')">Klaviyo<span class="platform-fetch-dot"></span></button>
+        <button class="platform-btn toggle-btn" data-platform="hubspot" onclick="switchPlatform('hubspot')">HubSpot<span class="platform-fetch-dot"></span></button>
       </div>
     </div>
 
@@ -1815,11 +1827,12 @@
     selectedPlatform = platform;
     selectedScenarioIndex = 0;
     genDone = false;
-    screen1Fetched = false;
-    document.getElementById('next-btn').disabled = true;
+    screen1Fetched = isCached();
+    document.getElementById('next-btn').disabled = !screen1Fetched;
     document.querySelectorAll('.platform-btn').forEach(b => b.classList.toggle('selected', b.dataset.platform === platform));
     renderScenarioButtons();
     renderSpecExplorer();
+    updateFetchButton();
   }
 
   function renderScenarioButtons() {
@@ -1833,11 +1846,12 @@
 
   function selectScenarioIndex(i) {
     selectedScenarioIndex = i;
-    screen1Fetched = false;
-    document.getElementById('next-btn').disabled = true;
+    screen1Fetched = isCached();
+    document.getElementById('next-btn').disabled = !screen1Fetched;
     document.querySelectorAll('#scenario-toggle .toggle-btn').forEach((b, idx) =>
       b.classList.toggle('selected', idx === i));
     renderSpecExplorer();
+    updateFetchButton();
   }
 
   function renderSpecExplorer() {
@@ -1867,8 +1881,17 @@
       document.getElementById('spec-explorer-count').textContent = '';
       const body = document.getElementById('spec-explorer-body');
       if (body) body.innerHTML = `<div class="scenario-blurb">${scenario?.blurb || scenario?.description || ''}</div>`;
+    } else {
+      // Restore from cache (scenario switch without re-fetch)
+      const cached = specCache[cacheKey()];
+      if (cached) {
+        document.getElementById('spec-explorer-title').textContent = cached.title;
+        document.getElementById('spec-explorer-version').textContent = cached.version;
+        document.getElementById('spec-explorer-server').textContent = cached.server;
+        document.getElementById('spec-explorer-count').textContent = cached.countText;
+        if (scenario?.requiredOps) renderRequiredOps(scenario.requiredOps, cached.paths);
+      }
     }
-    // After fetch: directFetch() has already written the validated API data — don't overwrite it
   }
 
   function renderEndpointRows(endpoints) {
@@ -1978,6 +2001,44 @@
   const total = 5;
   let genDone = false;
   let screen1Fetched = false;
+  const specCache = {};
+
+  function cacheKey() { return `${selectedPlatform}-${selectedScenarioIndex}`; }
+  function isCached() { return !!specCache[cacheKey()]; }
+  function platformFetchCount(platform) {
+    return PLATFORMS[platform].scenarios.filter((_, i) => specCache[`${platform}-${i}`]).length;
+  }
+
+  function updatePlatformIndicators() {
+    document.querySelectorAll('.platform-btn').forEach(btn => {
+      const p = btn.dataset.platform;
+      if (!PLATFORMS[p]) return;
+      const total = PLATFORMS[p].scenarios.length;
+      const fetched = platformFetchCount(p);
+      const dot = btn.querySelector('.platform-fetch-dot');
+      if (!dot) return;
+      dot.classList.remove('partial', 'complete');
+      if (fetched > 0 && fetched < total) dot.classList.add('partial');
+      else if (fetched === total) dot.classList.add('complete');
+    });
+  }
+
+  function updateFetchButton() {
+    const bigBtn = document.getElementById('btn-fetch-spec');
+    if (!bigBtn) return;
+    const preview = PLATFORMS[selectedPlatform]?.specPreview;
+    if (isCached()) {
+      bigBtn.style.background = 'transparent';
+      bigBtn.style.color = 'var(--ink-muted)';
+      bigBtn.style.borderColor = 'var(--ink-faint)';
+      bigBtn.textContent = '✓ Validated — click to re-fetch';
+    } else {
+      bigBtn.style.background = preview?.accent || '#9B72FF';
+      bigBtn.style.color = '#fff';
+      bigBtn.style.borderColor = 'transparent';
+      bigBtn.textContent = '⬇ Fetch & Validate Spec';
+    }
+  }
 
   function goTo(n) {
     if (n < 1 || n > total) return;
@@ -2324,7 +2385,8 @@
       await directFetch(url, requiredOps);
     } finally {
       if (smallBtn) { smallBtn.disabled = false; smallBtn.textContent = '↻ Reload'; }
-      if (bigBtn)   { bigBtn.disabled = false;   bigBtn.textContent = '⬇ Fetch & Validate Spec'; }
+      if (bigBtn)   { bigBtn.disabled = false; }
+      updateFetchButton();
     }
   }
 
@@ -2559,7 +2621,10 @@
             : `✓ All ${foundCount} required operations confirmed`;
           setFetchStatus('success', msg);
           screen1Fetched = true;
+          specCache[cacheKey()] = { paths: parsed.paths, title, version, server, countText: document.getElementById('spec-explorer-count').textContent };
           if (current === 1) document.getElementById('next-btn').disabled = false;
+          updatePlatformIndicators();
+          updateFetchButton();
         } else {
           const endpoints = [];
           for (const path of pathKeys) {
