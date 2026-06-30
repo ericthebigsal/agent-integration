@@ -1168,45 +1168,6 @@
   }
   .btn-download:hover { border-color: var(--ink-muted); color: var(--ink); }
 
-  .code-preview {
-    margin-top: 20px;
-    border: 1.5px solid #30363d;
-    border-radius: 8px;
-    overflow: hidden;
-  }
-  .code-tab-strip {
-    display: flex;
-    background: #161B22;
-    border-bottom: 1px solid #30363d;
-    overflow-x: auto;
-  }
-  .code-tab {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    padding: 8px 14px;
-    color: #8B949E;
-    cursor: pointer;
-    border-right: 1px solid #30363d;
-    white-space: nowrap;
-    transition: background 0.1s;
-    user-select: none;
-  }
-  .code-tab:hover { background: #1c2128; color: #E6EDF3; }
-  .code-tab.active { background: #0D1117; color: #58A6FF; }
-  .code-block {
-    background: #0D1117;
-    color: #E6EDF3;
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 12px;
-    line-height: 1.7;
-    padding: 20px;
-    margin: 0;
-    overflow-x: auto;
-    max-height: 340px;
-    overflow-y: auto;
-    white-space: pre;
-  }
-
   .tool-cards { display: flex; flex-direction: column; gap: 16px; }
   .tool-card {
     background: var(--bg-card);
@@ -1320,6 +1281,48 @@
     gap: 8px;
     align-items: center;
     margin-bottom: 8px;
+  }
+
+  .s2-intro {
+    font-size: 13.5px;
+    color: var(--ink-muted);
+    line-height: 1.65;
+    margin-bottom: 20px;
+    max-width: 680px;
+  }
+  .s2-intro strong { color: var(--ink); }
+
+  .tool-desc-panel {
+    margin-top: 20px;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+  .tool-desc-heading {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-muted);
+    margin-bottom: 14px;
+  }
+  .tool-desc-list { display: flex; flex-direction: column; gap: 14px; }
+  .tool-desc-row {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 16px;
+    align-items: baseline;
+  }
+  .tool-desc-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .tool-desc-text {
+    font-size: 13px;
+    color: var(--ink-muted);
+    line-height: 1.6;
   }
 
   /* ── VERIFICATION SCREEN ── */
@@ -1584,7 +1587,7 @@
     <div class="screen-header">
       <div class="screen-eyebrow">Step 02 of 05</div>
       <div class="screen-title">Skill match complete</div>
-      <div class="screen-sub">Spec endpoints aligned against domain priors. Multi-step operations identified. Warnings queued for review.</div>
+      <div class="screen-sub">The agent evaluated every operation in the fetched spec against its domain knowledge — confirming which are safe to automate, surfacing behavioral caveats the model needs before calling a tool, and excluding what can't be reliably wrapped. Only confirmed operations make it into the MCP server.</div>
     </div>
 
     <div class="field-group" style="margin-bottom: 20px;">
@@ -1593,6 +1596,10 @@
     </div>
 
     <div id="s2-klaviyo" class="s2-content">
+
+    <div class="s2-intro">
+      Of the 54 operations in the Klaviyo Profiles API, the agent <strong>confirmed 10</strong> for direct automation, surfaced <strong>6 behavioral warnings</strong> you'll acknowledge before proceeding, and <strong>excluded 1</strong> — bulk profile export — which has no safe API-level equivalent for agent use. Click any orange warning badge to read the agent's reasoning before moving on.
+    </div>
 
     <div class="stat-row">
       <div class="stat-chip">
@@ -1777,6 +1784,10 @@
     </div><!-- /s2-klaviyo -->
 
     <div id="s2-hubspot" class="s2-content" style="display:none">
+
+      <div class="s2-intro">
+        Across contacts, lists, and associations in the HubSpot CRM API, the agent <strong>confirmed 12 operations</strong> for direct automation and surfaced <strong>7 behavioral warnings</strong> requiring acknowledgment before the MCP server can be generated. All excluded operations involve UI-only or batch-processing workflows with no reliable programmatic equivalent. Click any orange warning badge to read the agent's reasoning.
+      </div>
 
       <div class="stat-row">
         <div class="stat-chip">
@@ -2009,9 +2020,9 @@
         <button class="btn-download" id="btn-download" onclick="downloadServer()" style="margin-left:auto;display:none">&#8595; Download .py</button>
       </div>
       <div class="tool-grid" id="tool-grid"></div>
-      <div class="code-preview" id="code-preview" style="display:none">
-        <div class="code-tab-strip" id="code-tabs"></div>
-        <pre class="code-block" id="code-block"></pre>
+      <div class="tool-desc-panel" id="tool-desc-panel" style="display:none">
+        <div class="tool-desc-heading">What each tool does</div>
+        <div class="tool-desc-list" id="tool-desc-list"></div>
       </div>
     </div>
   </div>
@@ -2516,7 +2527,6 @@
   let generatedCode = '';
   let generatedTools = [];
   let generatedFilename = 'mcp-server.py';
-  let selectedCodeTab = 0;
   let toolsUnlocked = false;
 
   function cacheKey() { return `${selectedPlatform}-${selectedScenarioIndex}`; }
@@ -2643,7 +2653,7 @@
     if (n === 4) {
       renderScreen4();
       if (genDone) {
-        renderCodePreview();
+        renderToolDescriptions();
         const dlBtn = document.getElementById('btn-download');
         if (dlBtn) dlBtn.style.display = 'inline-flex';
       }
@@ -3226,7 +3236,7 @@
       genDone = true;
       toolsEl.classList.add('visible');
       renderScreen4();
-      renderCodePreview();
+      renderToolDescriptions();
       const dlBtn = document.getElementById('btn-download');
       if (dlBtn) dlBtn.style.display = 'inline-flex';
 
@@ -3239,35 +3249,44 @@
     }
   }
 
-  function renderCodePreview() {
-    if (!generatedCode || generatedTools.length === 0) return;
-    const preview = document.getElementById('code-preview');
-    const tabs = document.getElementById('code-tabs');
-    if (!preview || !tabs) return;
-    tabs.innerHTML = generatedTools.map((t, i) =>
-      `<div class="code-tab${i === 0 ? ' active' : ''}" onclick="showCodeTab(${i})">${t.name}</div>`
-    ).join('');
-    selectedCodeTab = 0;
-    showCodeTab(0);
-    preview.style.display = 'block';
-  }
+  const TOOL_DESCRIPTIONS = {
+    upsert_profile:              'Creates a new Klaviyo profile or silently merges with an existing one matched by email. Idempotent — safe to call repeatedly with the same payload. Custom attributes are written to the <code>properties</code> bag and become immediately available as segment filter criteria.',
+    get_profile:                 'Retrieves a single profile by its Klaviyo-assigned ID, returning all standard fields and any custom properties previously written to the record.',
+    update_profile:              'Patches one or more attributes on an existing profile without touching fields not present in the request. Use for targeted updates when the full profile state is already known.',
+    list_profiles:               'Returns a paginated list of profiles across the account. The <code>page_size</code> parameter controls response volume; cursor-based pagination tokens are embedded in the response for walking large datasets.',
+    delete_profile:              'Enqueues a GDPR-compliant data-privacy deletion job. Removal is asynchronous and permanent — the profile and all associated event history will be purged from Klaviyo\'s systems. There is no undo and no completion webhook; poll the job status endpoint if confirmation is required.',
+    create_list:                 'Creates a named static list — the primary container for manual audience management. Lists are consumed directly by campaigns and used as prerequisites for flow enrollment triggers.',
+    add_list_member:             'Adds a profile to a list by its Klaviyo ID. If the profile is already a member, the call succeeds silently — no duplicate is created and no error is returned.',
+    remove_list_member:          'Removes a profile from a list without touching the underlying profile record. The profile continues to exist in the account; only the list membership relationship is severed.',
+    delete_list:                 'Permanently deletes a list and all its membership records. The profiles themselves are unaffected. Any campaigns or flows referencing this list will need to be updated before they can run.',
+    create_segment:              'Defines a dynamic audience segment using a property-based filter expression. Membership is recomputed automatically as profiles gain or lose the matching property — no manual add-member call is required or valid.',
+    get_segment:                 'Retrieves a segment\'s filter definition. When <code>include_profiles</code> is <code>true</code>, the response includes the current set of matching profile IDs. Membership data may lag up to 60 seconds behind a recent property change.',
+    create_contact:              'Creates a single net-new contact record. If a contact with the provided email already exists, HubSpot returns a conflict error — use <code>batch_upsert_contacts</code> when idempotent behavior is required.',
+    batch_upsert_contacts:       'Creates or updates up to 100 contacts in a single request, deduplicating on email address. This is the preferred write path for any scenario where the contact may already exist in the CRM.',
+    update_contact:              'Patches specific properties on an existing contact by HubSpot record ID. Only the properties included in the request are modified; all others retain their current values.',
+    archive_contact:             'Soft-deletes a contact. The record is excluded from most CRM views and reports but remains in HubSpot\'s system and can be restored. This is not a permanent deletion — use with intent.',
+    list_contacts:               'Returns a paginated list of contacts with their properties. Use the <code>limit</code> parameter to control page size and the <code>after</code> cursor returned in each response to walk through large result sets.',
+    add_list_members:            'Adds one or more contacts to a MANUAL list by record ID. Submitting an ID that is already a member returns HTTP 200 silently — no duplicate is created and no error is raised.',
+    delete_list:                 'Permanently deletes a list definition and removes all membership records. Contact records are not deleted. Dynamic lists also cease evaluation upon deletion.',
+    update_list_name:            'Renames an existing list in place. Has no effect on membership, processing type, or any campaigns that reference the list.',
+    batch_create_associations:   'Links pairs of CRM objects — such as a contact to a company — using a HubSpot-defined association type ID. Type IDs are fixed integers specified in the HubSpot API reference; an incorrect ID will succeed silently but record the wrong relationship type.',
+    batch_read_associations:     'Retrieves all associations for a set of source object IDs, returning the linked object IDs and the association type label for each relationship found.',
+    batch_delete_associations:   'Removes specific named association records between object pairs. Only the specified relationship type is deleted — the underlying objects and any other association types between them remain intact.',
+  };
 
-  function showCodeTab(index) {
-    selectedCodeTab = index;
-    document.querySelectorAll('.code-tab').forEach((el, i) =>
-      el.classList.toggle('active', i === index));
-    const block = document.getElementById('code-block');
-    if (!block || !generatedCode) return;
-    const toolName = generatedTools[index]?.name;
-    if (!toolName) return;
-    const marker = `@mcp.tool()\nasync def ${toolName}(`;
-    const start = generatedCode.indexOf(marker);
-    if (start === -1) { block.textContent = generatedCode; return; }
-    const nextMarker = generatedCode.indexOf('@mcp.tool()', start + marker.length);
-    const snippet = nextMarker > -1
-      ? generatedCode.slice(start, nextMarker).trimEnd()
-      : generatedCode.slice(start).trimEnd();
-    block.textContent = snippet;
+  function renderToolDescriptions() {
+    if (generatedTools.length === 0) return;
+    const panel = document.getElementById('tool-desc-panel');
+    const list = document.getElementById('tool-desc-list');
+    if (!panel || !list) return;
+    list.innerHTML = generatedTools.map(t => {
+      const desc = TOOL_DESCRIPTIONS[t.name] || t.short_desc || `${t.method.toUpperCase()} ${t.path}`;
+      return `<div class="tool-desc-row">
+        <div class="tool-desc-name">${t.name}()</div>
+        <div class="tool-desc-text">${desc}</div>
+      </div>`;
+    }).join('');
+    panel.style.display = 'block';
   }
 
   function downloadServer() {
