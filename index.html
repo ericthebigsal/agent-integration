@@ -1149,6 +1149,178 @@
     border-radius: 5px;
     padding: 6px 10px;
   }
+  .tool-chip.enriched { border-color: rgba(16,185,129,0.3); color: var(--ink); }
+
+  .btn-download {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 5px;
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--ink-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .btn-download:hover { border-color: var(--ink-muted); color: var(--ink); }
+
+  .code-preview {
+    margin-top: 20px;
+    border: 1.5px solid #30363d;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .code-tab-strip {
+    display: flex;
+    background: #161B22;
+    border-bottom: 1px solid #30363d;
+    overflow-x: auto;
+  }
+  .code-tab {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 8px 14px;
+    color: #8B949E;
+    cursor: pointer;
+    border-right: 1px solid #30363d;
+    white-space: nowrap;
+    transition: background 0.1s;
+    user-select: none;
+  }
+  .code-tab:hover { background: #1c2128; color: #E6EDF3; }
+  .code-tab.active { background: #0D1117; color: #58A6FF; }
+  .code-block {
+    background: #0D1117;
+    color: #E6EDF3;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    padding: 20px;
+    margin: 0;
+    overflow-x: auto;
+    max-height: 340px;
+    overflow-y: auto;
+    white-space: pre;
+  }
+
+  .tool-cards { display: flex; flex-direction: column; gap: 16px; }
+  .tool-card {
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+  }
+  .tool-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .tool-card-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 3px;
+  }
+  .tool-card-method-badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(88,166,255,0.12);
+    color: #58A6FF;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .tool-card-path {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-muted);
+  }
+  .tool-card-desc {
+    font-size: 12.5px;
+    color: var(--ink-muted);
+    line-height: 1.55;
+    margin-bottom: 12px;
+  }
+  .tool-args-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-muted);
+    margin-bottom: 5px;
+  }
+  .tool-args {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    width: 100%;
+    box-sizing: border-box;
+    resize: vertical;
+    min-height: 72px;
+    outline: none;
+  }
+  .tool-run-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .tool-run-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 7px 16px;
+    border-radius: 6px;
+    border: none;
+    background: var(--ink);
+    color: #fff;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .tool-run-btn:hover:not(:disabled) { opacity: 0.82; }
+  .tool-run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .tool-run-status {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-muted);
+  }
+  .tool-response {
+    display: none;
+    margin-top: 12px;
+    background: #0D1117;
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    line-height: 1.7;
+    color: #7EE787;
+    overflow-x: auto;
+    max-height: 220px;
+    overflow-y: auto;
+    white-space: pre;
+  }
+  .tool-response.error { color: #FF7B72; }
+  .tool-response.visible { display: block; }
+  .demo-unlock-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
 
   /* ── VERIFICATION SCREEN ── */
   .verify-steps { display: flex; flex-direction: column; gap: 12px; margin-bottom: 28px; }
@@ -1834,32 +2006,33 @@
     <div class="gen-tools" id="gen-tools">
       <div class="gen-tools-header">
         <span class="gen-success-badge" id="screen4-badge">✓ 10 tools generated</span>
+        <button class="btn-download" id="btn-download" onclick="downloadServer()" style="margin-left:auto;display:none">&#8595; Download .py</button>
       </div>
-      <div class="tool-grid" id="tool-grid">
-        <!-- rendered by renderScreen4() -->
+      <div class="tool-grid" id="tool-grid"></div>
+      <div class="code-preview" id="code-preview" style="display:none">
+        <div class="code-tab-strip" id="code-tabs"></div>
+        <pre class="code-block" id="code-block"></pre>
       </div>
     </div>
   </div>
 
-  <!-- ── SCREEN 5: VERIFICATION ── -->
+  <!-- ── SCREEN 5: LIVE TOOL EXECUTION ── -->
   <div class="screen" id="screen-5">
     <div class="screen-header">
       <div class="screen-eyebrow">Step 05 of 05</div>
-      <div class="screen-title">Live verification</div>
-      <div class="screen-sub" id="screen5-sub">Real API calls against a Klaviyo free-tier account. Segment membership computed automatically — no add-member call.</div>
+      <div class="screen-title">Live tool execution</div>
+      <div class="screen-sub" id="screen5-sub">Generated MCP tools called against a live API. Each tool below is from the server generated in Step 4 — real httpx calls, real responses.</div>
     </div>
 
-    <div style="margin-bottom:20px">
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+    <div id="demo-unlock" style="margin-bottom:24px">
+      <div class="demo-unlock-row">
         <input id="demo-password" type="password" placeholder="Demo password" autocomplete="off"
           style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;width:200px;outline:none" />
-        <button class="btn-primary" onclick="runLiveDemo()">
-          Run live demo
-        </button>
+        <button class="btn-primary" onclick="unlockTools()">Unlock tools &#8594;</button>
       </div>
-      <p style="font-size:12px;color:var(--ink-muted)">Enter the demo password to run live API calls.</p>
+      <p style="font-size:12px;color:var(--ink-muted)">Enter the demo password to enable live API calls.</p>
     </div>
-    <div id="live-steps"></div>
+    <div id="tool-cards" class="tool-cards"></div>
   </div>
 
   <!-- SKILL EXPLANATION MODAL -->
@@ -2309,14 +2482,29 @@
     const badge = document.getElementById('screen4-badge');
     const grid = document.getElementById('tool-grid');
     if (sub) sub.innerHTML = p.screen4Sub;
-    if (badge) badge.textContent = `✓ ${p.toolCount} tools generated`;
-    if (grid) grid.innerHTML = p.tools.map(t => `<div class="tool-chip">${t}</div>`).join('');
+    const tools = generatedTools.length > 0
+      ? generatedTools
+      : p.tools.map(t => ({ name: t, enriched: false }));
+    const count = tools.length || p.toolCount;
+    if (badge) badge.textContent = `✓ ${count} tools generated`;
+    if (grid) grid.innerHTML = tools.map(t =>
+      `<div class="tool-chip${t.enriched ? ' enriched' : ''}">${t.name}</div>`
+    ).join('');
   }
 
   function renderScreen5() {
     const p = PLATFORMS[selectedPlatform];
     const sub = document.getElementById('screen5-sub');
     if (sub) sub.textContent = p.screen5Desc;
+    const unlockEl = document.getElementById('demo-unlock');
+    const cardsEl = document.getElementById('tool-cards');
+    if (toolsUnlocked) {
+      if (unlockEl) unlockEl.style.display = 'none';
+      renderToolCards();
+    } else {
+      if (unlockEl) unlockEl.style.display = 'block';
+      if (cardsEl) cardsEl.innerHTML = '';
+    }
   }
 
   let current = 1;
@@ -2325,6 +2513,11 @@
   let screen1Fetched = false;
   const specCache = {};
   let screen2Platform = 'klaviyo';
+  let generatedCode = '';
+  let generatedTools = [];
+  let generatedFilename = 'mcp-server.py';
+  let selectedCodeTab = 0;
+  let toolsUnlocked = false;
 
   function cacheKey() { return `${selectedPlatform}-${selectedScenarioIndex}`; }
   function isCached() { return !!specCache[cacheKey()]; }
@@ -2447,7 +2640,14 @@
 
     // screen 4: run generation + render platform tools
     if (n === 4 && !genDone) runGeneration();
-    if (n === 4) renderScreen4();
+    if (n === 4) {
+      renderScreen4();
+      if (genDone) {
+        renderCodePreview();
+        const dlBtn = document.getElementById('btn-download');
+        if (dlBtn) dlBtn.style.display = 'inline-flex';
+      }
+    }
 
     // screen 5: render subtitle
     if (n === 5) renderScreen5();
@@ -2459,74 +2659,6 @@
   function next() { goTo(current + 1); }
   function prev() { goTo(current - 1); }
 
-  async function runLiveDemo() {
-    const platform = PLATFORMS[selectedPlatform];
-    const btn = document.querySelector('[onclick="runLiveDemo()"]');
-    if (btn) btn.disabled = true;
-
-    const demoKey = (document.getElementById('demo-password')?.value || '').trim();
-    const container = document.getElementById('live-steps');
-    if (!container) return;
-    container.innerHTML = '<p style="color:var(--ink-muted);font-size:13px">Calling API…</p>';
-
-    try {
-      const run = await fetch(`${BACKEND_URL}${platform.demoEndpoint}`, {
-        method: 'POST',
-        headers: { 'X-Demo-Key': demoKey }
-      });
-      if (!run.ok) throw new Error(`${platform.demoEndpoint} returned ${run.status}`);
-      const result = await run.json();
-
-      // Render initial steps
-      const stepsHtml = result.steps.map(s => `
-        <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--border)">
-          <span style="color:var(--green);font-weight:600;min-width:16px">✓</span>
-          <div>
-            <div style="font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:500">${s.step}</div>
-            ${s.id ? `<div style="font-size:12px;color:var(--ink-muted)">id: ${s.id}</div>` : ''}
-            ${s.association ? `<div style="font-size:12px;color:var(--ink-muted)">${s.association}</div>` : ''}
-            ${s.message ? `<div style="font-size:12px;color:var(--ink-muted)">${s.message}</div>` : ''}
-          </div>
-          <span style="margin-left:auto;font-size:11px;color:var(--green)">${s.status}</span>
-        </div>
-      `).join('');
-      container.innerHTML = stepsHtml;
-
-      if (platform.demoPollPath) {
-        // Klaviyo: poll for segment membership
-        const segmentId = result.segment_id;
-        if (!segmentId) throw new Error('segment_id missing from demo/run response');
-
-        const countdownEl = document.createElement('p');
-        countdownEl.style.cssText = 'font-size:13px;color:var(--ink-muted);margin-top:12px';
-        container.appendChild(countdownEl);
-
-        let remaining = 45;
-        const tick = setInterval(() => {
-          remaining--;
-          countdownEl.textContent = `Waiting for Klaviyo to compute segment membership… ${remaining}s`;
-          if (remaining <= 0) clearInterval(tick);
-        }, 1000);
-
-        await new Promise(r => setTimeout(r, 45000));
-        clearInterval(tick);
-
-        const poll = await fetch(`${BACKEND_URL}${platform.demoPollPath(segmentId)}`);
-        if (!poll.ok) throw new Error(`poll returned ${poll.status}`);
-        const members = await poll.json();
-
-        countdownEl.innerHTML = `
-          <span style="color:var(--green);font-weight:600">✓ Segment has ${members.member_count} member(s)</span>
-          — profile enrolled automatically via property match. No add-member call made.
-        `;
-      }
-
-    } catch (err) {
-      container.innerHTML = `<p style="color:var(--red)">${err.message} — is the backend running at ${BACKEND_URL}?</p>`;
-    } finally {
-      if (btn) btn.disabled = false;
-    }
-  }
 
 
   function setInputMode() { /* replaced by spec-explorer card */ }
@@ -3023,41 +3155,242 @@
     document.getElementById('next-btn').disabled = !allChecked;
   }
 
-  function runGeneration() {
+  async function runGeneration() {
     const log = document.getElementById('gen-log');
-    const tools = document.getElementById('gen-tools');
+    const toolsEl = document.getElementById('gen-tools');
     log.innerHTML = '';
-    tools.classList.remove('visible');
+    toolsEl.classList.remove('visible');
 
-    const lines = [
-      { text: '$ openapi-mcp --spec klaviyo-enriched.json \\', cls: '' },
-      { text: '    --include-tags Profiles,Lists,Segments,DataPrivacy \\', cls: 'dim' },
-      { text: '    --auth-header "Authorization: Klaviyo-API-Key {key}"', cls: 'dim' },
+    const isKlaviyo = selectedPlatform === 'klaviyo';
+    const tags = isKlaviyo
+      ? 'Profiles,Lists,Segments,DataPrivacy'
+      : 'Contacts,Lists,Associations';
+    const authHeader = isKlaviyo
+      ? 'Authorization: Klaviyo-API-Key {key}'
+      : 'Authorization: Bearer {key}';
+    const specName = `${selectedPlatform}-enriched.json`;
+    const opCount = PLATFORMS[selectedPlatform].tools.length;
+
+    const leadLines = [
+      { text: `$ openapi-mcp --spec ${specName} \\`, cls: '' },
+      { text: `    --include-tags ${tags} \\`, cls: 'dim' },
+      { text: `    --auth-header "${authHeader}"`, cls: 'dim' },
       { text: '', cls: '' },
-      { text: 'Loading spec... 847 operations found', cls: 'dim' },
-      { text: 'Applying scope filter... 10 operations selected', cls: 'dim' },
-      { text: 'Enriched descriptions detected on 10/10 operations', cls: 'dim' },
-      { text: 'Generating tool definitions...', cls: 'dim' },
-      { text: 'Writing MCP server to ./klaviyo-mcp/', cls: 'dim' },
-      { text: '', cls: '' },
-      { text: '✓ Done. 10 tools generated.', cls: 'done-line' },
+      { text: `Loading spec... ${isKlaviyo ? '847' : '1243'} operations found`, cls: 'dim' },
+      { text: `Applying scope filter... ${opCount} operations selected`, cls: 'dim' },
     ];
 
     let i = 0;
-    const interval = setInterval(() => {
-      if (i >= lines.length) {
-        clearInterval(interval);
-        tools.classList.add('visible');
-        genDone = true;
-        return;
+    await new Promise(resolve => {
+      const interval = setInterval(() => {
+        if (i >= leadLines.length) { clearInterval(interval); resolve(); return; }
+        const div = document.createElement('div');
+        div.className = 'log-line' + (leadLines[i].cls ? ' ' + leadLines[i].cls : '');
+        div.textContent = leadLines[i].text;
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
+        i++;
+      }, 300);
+    });
+
+    try {
+      const resp = await fetch(`${BACKEND_URL}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform: selectedPlatform, scenario_index: selectedScenarioIndex }),
+      });
+      if (!resp.ok) throw new Error(`/api/generate returned ${resp.status}`);
+      const data = await resp.json();
+
+      generatedCode = data.code;
+      generatedTools = data.tools;
+      generatedFilename = data.filename;
+
+      const tailLines = [
+        { text: `Enriched descriptions detected on ${data.enriched_count}/${data.total_ops} operations`, cls: 'dim' },
+        { text: 'Generating tool definitions...', cls: 'dim' },
+        { text: `Writing MCP server to ./${data.filename}`, cls: 'dim' },
+        { text: '', cls: '' },
+        { text: `✓ Done. ${data.total_ops} tools generated.`, cls: 'done-line' },
+      ];
+
+      for (const line of tailLines) {
+        await new Promise(r => setTimeout(r, 280));
+        const div = document.createElement('div');
+        div.className = 'log-line' + (line.cls ? ' ' + line.cls : '');
+        div.textContent = line.text;
+        log.appendChild(div);
+        log.scrollTop = log.scrollHeight;
       }
+
+      genDone = true;
+      toolsEl.classList.add('visible');
+      renderScreen4();
+      renderCodePreview();
+      const dlBtn = document.getElementById('btn-download');
+      if (dlBtn) dlBtn.style.display = 'inline-flex';
+
+    } catch (err) {
       const div = document.createElement('div');
-      div.className = 'log-line' + (lines[i].cls ? ' ' + lines[i].cls : '');
-      div.textContent = lines[i].text;
+      div.className = 'log-line';
+      div.style.color = '#FF7B72';
+      div.textContent = `✗ Generation failed: ${err.message}`;
       log.appendChild(div);
-      log.scrollTop = log.scrollHeight;
-      i++;
-    }, 350);
+    }
+  }
+
+  function renderCodePreview() {
+    if (!generatedCode || generatedTools.length === 0) return;
+    const preview = document.getElementById('code-preview');
+    const tabs = document.getElementById('code-tabs');
+    if (!preview || !tabs) return;
+    tabs.innerHTML = generatedTools.map((t, i) =>
+      `<div class="code-tab${i === 0 ? ' active' : ''}" onclick="showCodeTab(${i})">${t.name}</div>`
+    ).join('');
+    selectedCodeTab = 0;
+    showCodeTab(0);
+    preview.style.display = 'block';
+  }
+
+  function showCodeTab(index) {
+    selectedCodeTab = index;
+    document.querySelectorAll('.code-tab').forEach((el, i) =>
+      el.classList.toggle('active', i === index));
+    const block = document.getElementById('code-block');
+    if (!block || !generatedCode) return;
+    const toolName = generatedTools[index]?.name;
+    if (!toolName) return;
+    const marker = `@mcp.tool()\nasync def ${toolName}(`;
+    const start = generatedCode.indexOf(marker);
+    if (start === -1) { block.textContent = generatedCode; return; }
+    const nextMarker = generatedCode.indexOf('@mcp.tool()', start + marker.length);
+    const snippet = nextMarker > -1
+      ? generatedCode.slice(start, nextMarker).trimEnd()
+      : generatedCode.slice(start).trimEnd();
+    block.textContent = snippet;
+  }
+
+  function downloadServer() {
+    if (!generatedCode) return;
+    const blob = new Blob([generatedCode], { type: 'text/x-python' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = generatedFilename;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  function getDemoArgs(platform, scenarioIndex) {
+    const ts = Date.now().toString().slice(-6);
+    const cfg = {
+      'klaviyo-0': [
+        { name: 'upsert_profile', args: { email: `demo-${ts}@example.com`, first_name: 'Demo', last_name: 'User', properties: { vip_tier: 'gold' } } },
+        { name: 'list_profiles', args: { page_size: 3 } },
+        { name: 'delete_profile', args: { profile_id: '' } },
+      ],
+      'klaviyo-1': [
+        { name: 'create_list', args: { name: `Demo List ${ts}` } },
+        { name: 'add_list_member', args: { list_id: '', profile_id: '' } },
+        { name: 'delete_list', args: { list_id: '' } },
+      ],
+      'klaviyo-2': [
+        { name: 'create_segment', args: { name: `VIP Gold ${ts}`, property_name: 'vip_tier', property_value: 'gold' } },
+        { name: 'get_segment', args: { segment_id: '', include_profiles: false } },
+      ],
+      'hubspot-0': [
+        { name: 'batch_upsert_contacts', args: { contacts: [{ email: `demo-${ts}@example.com`, firstname: 'Demo', lastname: 'User' }] } },
+        { name: 'list_contacts', args: { limit: 3 } },
+        { name: 'archive_contact', args: { contact_id: '' } },
+      ],
+      'hubspot-1': [
+        { name: 'create_list', args: { name: `Demo List ${ts}`, processing_type: 'MANUAL' } },
+        { name: 'add_list_members', args: { list_id: '', record_ids: [] } },
+        { name: 'delete_list', args: { list_id: '' } },
+      ],
+      'hubspot-2': [
+        { name: 'batch_create_associations', args: { from_object_type: 'contacts', to_object_type: 'companies', associations: [{ from_id: '', to_id: '', association_type_id: 1 }] } },
+        { name: 'batch_read_associations', args: { from_object_type: 'contacts', to_object_type: 'companies', from_ids: [] } },
+      ],
+    };
+    return cfg[`${platform}-${scenarioIndex}`] || [];
+  }
+
+  function unlockTools() {
+    toolsUnlocked = true;
+    const unlockEl = document.getElementById('demo-unlock');
+    if (unlockEl) unlockEl.style.display = 'none';
+    renderToolCards();
+  }
+
+  function renderToolCards() {
+    const container = document.getElementById('tool-cards');
+    if (!container) return;
+    const tools = generatedTools.length > 0 ? generatedTools : [];
+    if (tools.length === 0) {
+      container.innerHTML = '<p style="color:var(--ink-muted);font-size:13px">Go back to Step 4 to generate the MCP server first.</p>';
+      return;
+    }
+    const featured = getDemoArgs(selectedPlatform, selectedScenarioIndex);
+    container.innerHTML = featured.map((cfg, i) => {
+      const tool = tools.find(t => t.name === cfg.name);
+      if (!tool) return '';
+      const argsJson = JSON.stringify(cfg.args, null, 2);
+      return `
+        <div class="tool-card">
+          <div class="tool-card-header">
+            <div>
+              <div class="tool-card-name">${tool.name}()</div>
+              <div class="tool-card-path">${tool.method.toUpperCase()} ${tool.path}</div>
+            </div>
+            <span class="tool-card-method-badge">${tool.method.toUpperCase()}</span>
+          </div>
+          ${tool.short_desc ? `<div class="tool-card-desc">${tool.short_desc}</div>` : ''}
+          <div class="tool-args-label">Arguments</div>
+          <textarea class="tool-args" id="tc-args-${i}">${argsJson}</textarea>
+          <div class="tool-run-row">
+            <button class="tool-run-btn" onclick="runToolCard('${tool.name}','tc-args-${i}','tc-resp-${i}','tc-status-${i}')">Run &#8594;</button>
+            <span class="tool-run-status" id="tc-status-${i}"></span>
+          </div>
+          <pre class="tool-response" id="tc-resp-${i}"></pre>
+        </div>`;
+    }).join('');
+  }
+
+  async function runToolCard(toolName, argsId, respId, statusId) {
+    const argsEl = document.getElementById(argsId);
+    const respEl = document.getElementById(respId);
+    const statusEl = document.getElementById(statusId);
+    const btn = argsEl?.closest('.tool-card')?.querySelector('.tool-run-btn');
+
+    let args;
+    try {
+      args = JSON.parse(argsEl.value);
+    } catch (e) {
+      if (respEl) { respEl.textContent = `JSON parse error: ${e.message}`; respEl.className = 'tool-response error visible'; }
+      return;
+    }
+
+    const demoKey = (document.getElementById('demo-password')?.value || '').trim();
+    if (btn) btn.disabled = true;
+    if (respEl) { respEl.className = 'tool-response'; respEl.textContent = ''; }
+    if (statusEl) statusEl.textContent = 'calling API…';
+
+    try {
+      const resp = await fetch(`${BACKEND_URL}/api/run-tool`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ platform: selectedPlatform, tool_name: toolName, args, demo_key: demoKey }),
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
+      if (respEl) { respEl.textContent = JSON.stringify(data, null, 2); respEl.className = 'tool-response visible'; }
+      if (statusEl) statusEl.textContent = `✓ ${resp.status}`;
+    } catch (err) {
+      if (respEl) { respEl.textContent = err.message; respEl.className = 'tool-response error visible'; }
+      if (statusEl) statusEl.textContent = '✗ error';
+    } finally {
+      if (btn) btn.disabled = false;
+    }
   }
 
   // keyboard nav
