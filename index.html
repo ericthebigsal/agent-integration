@@ -1259,23 +1259,65 @@
     font-size: 11px;
     color: var(--ink-muted);
   }
-  .tool-response {
-    display: none;
-    margin-top: 12px;
-    background: #0D1117;
+  .result-flip {
+    perspective: 900px;
+    margin-top: 14px;
+  }
+  .result-flip-inner {
+    position: relative;
+    min-height: 80px;
+    transition: transform 0.45s cubic-bezier(.4,0,.2,1);
+    transform-style: preserve-3d;
+  }
+  .result-flip.flipped .result-flip-inner { transform: rotateY(180deg); }
+  .result-flip-front,
+  .result-flip-back {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
     border-radius: 6px;
     padding: 14px 16px;
+    box-sizing: border-box;
+  }
+  .result-flip-front {
+    background: var(--bg-card);
+    border: 1.5px solid var(--green);
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: var(--ink);
+    min-height: 80px;
+  }
+  .result-flip-front.is-error { border-color: rgba(255,123,114,0.5); }
+  .result-flip-back {
+    position: absolute;
+    inset: 0;
+    transform: rotateY(180deg);
+    background: #0D1117;
+    border: 1.5px solid #30363d;
     font-family: 'IBM Plex Mono', monospace;
     font-size: 11.5px;
     line-height: 1.7;
     color: #7EE787;
-    overflow-x: auto;
-    max-height: 220px;
     overflow-y: auto;
     white-space: pre;
   }
-  .tool-response.error { color: #FF7B72; }
-  .tool-response.visible { display: block; }
+  .flip-toggle-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 5px;
+  }
+  .flip-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--ink-muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 2px 0;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+  }
+  .flip-btn:hover { opacity: 1; color: var(--ink); }
   .demo-unlock-row {
     display: flex;
     gap: 8px;
@@ -3303,35 +3345,150 @@
     const ts = Date.now().toString().slice(-6);
     const cfg = {
       'klaviyo-0': [
-        { name: 'upsert_profile', args: { email: `demo-${ts}@example.com`, first_name: 'Demo', last_name: 'User', properties: { vip_tier: 'gold' } } },
-        { name: 'list_profiles', args: { page_size: 3 } },
-        { name: 'delete_profile', args: { profile_id: '' } },
+        {
+          name: 'upsert_profile',
+          args: { email: `alex.chen.${ts}@example.com`, first_name: 'Alex', last_name: 'Chen', properties: { vip_tier: 'gold', lifetime_value: 4200 } }
+        },
+        {
+          name: 'list_profiles',
+          args: { page_size: 5 }
+        },
       ],
       'klaviyo-1': [
-        { name: 'create_list', args: { name: `Demo List ${ts}` } },
-        { name: 'add_list_member', args: { list_id: '', profile_id: '' } },
-        { name: 'delete_list', args: { list_id: '' } },
+        {
+          name: 'create_list',
+          args: { name: `Early Access — Summer Drop ${ts}` }
+        },
+        {
+          name: 'add_list_member',
+          args: { list_id: '<paste list id from create_list result>', profile_id: '<paste profile id from upsert_profile result>' }
+        },
       ],
       'klaviyo-2': [
-        { name: 'create_segment', args: { name: `VIP Gold ${ts}`, property_name: 'vip_tier', property_value: 'gold' } },
-        { name: 'get_segment', args: { segment_id: '', include_profiles: false } },
+        {
+          name: 'create_segment',
+          args: { name: `VIP Gold Customers ${ts}`, property_name: 'vip_tier', property_value: 'gold' }
+        },
       ],
       'hubspot-0': [
-        { name: 'batch_upsert_contacts', args: { contacts: [{ email: `demo-${ts}@example.com`, firstname: 'Demo', lastname: 'User' }] } },
-        { name: 'list_contacts', args: { limit: 3 } },
-        { name: 'archive_contact', args: { contact_id: '' } },
+        {
+          name: 'batch_upsert_contacts',
+          args: { contacts: [{ email: `alex.chen.${ts}@example.com`, firstname: 'Alex', lastname: 'Chen', company: 'Acme Corp' }] }
+        },
+        {
+          name: 'list_contacts',
+          args: { limit: 5 }
+        },
       ],
       'hubspot-1': [
-        { name: 'create_list', args: { name: `Demo List ${ts}`, processing_type: 'MANUAL' } },
-        { name: 'add_list_members', args: { list_id: '', record_ids: [] } },
-        { name: 'delete_list', args: { list_id: '' } },
+        {
+          name: 'create_list',
+          args: { name: `Q3 Campaign Targets ${ts}`, processing_type: 'MANUAL' }
+        },
+        {
+          name: 'add_list_members',
+          args: { list_id: '<paste list id from create_list result>', record_ids: [] }
+        },
       ],
       'hubspot-2': [
-        { name: 'batch_create_associations', args: { from_object_type: 'contacts', to_object_type: 'companies', associations: [{ from_id: '', to_id: '', association_type_id: 1 }] } },
-        { name: 'batch_read_associations', args: { from_object_type: 'contacts', to_object_type: 'companies', from_ids: [] } },
+        {
+          name: 'batch_read_associations',
+          args: { from_object_type: 'contacts', to_object_type: 'companies', from_ids: [] }
+        },
+        {
+          name: 'batch_create_associations',
+          args: { from_object_type: 'contacts', to_object_type: 'companies', associations: [{ from_id: '<contact_id>', to_id: '<company_id>', association_type_id: 1 }] }
+        },
       ],
     };
     return cfg[`${platform}-${scenarioIndex}`] || [];
+  }
+
+  function summarizeResponse(toolName, data) {
+    try {
+      switch (toolName) {
+        case 'upsert_profile': {
+          const d = data.data || {};
+          const a = d.attributes || {};
+          const name = [a.first_name, a.last_name].filter(Boolean).join(' ') || '—';
+          return `Profile <strong>${name}</strong> (${a.email || '—'}) written to Klaviyo.<br>Klaviyo ID: <code>${d.id || '—'}</code>`;
+        }
+        case 'get_profile': {
+          const a = data.data?.attributes || {};
+          return `Retrieved <strong>${[a.first_name, a.last_name].filter(Boolean).join(' ') || '—'}</strong><br>Email: ${a.email || '—'}`;
+        }
+        case 'list_profiles': {
+          const items = data.data || [];
+          const first = items[0]?.attributes;
+          return `${items.length} profile${items.length !== 1 ? 's' : ''} returned.${first ? `<br>First: <strong>${[first.first_name, first.last_name].filter(Boolean).join(' ') || '—'}</strong> — ${first.email}` : ''}`;
+        }
+        case 'delete_profile':
+          return `Deletion job queued. The profile and all associated event history will be permanently purged from Klaviyo's systems within 24 hours.`;
+        case 'create_list': {
+          const d = data.data || {};
+          return `List <strong>"${d.attributes?.name || '—'}"</strong> created.<br>List ID: <code>${d.id || '—'}</code>`;
+        }
+        case 'add_list_member':
+        case 'remove_list_member':
+          return `Membership updated. API returned HTTP 204 — no body.`;
+        case 'delete_list':
+          return `List deleted. API returned HTTP 204 — no body.`;
+        case 'create_segment': {
+          const d = data.data || {};
+          return `Segment <strong>"${d.attributes?.name || '—'}"</strong> created.<br>ID: <code>${d.id || '—'}</code><br>Klaviyo will begin computing membership within 10–60 seconds.`;
+        }
+        case 'get_segment': {
+          const d = data.data || {};
+          return `Segment <strong>"${d.attributes?.name || '—'}"</strong> retrieved.<br>ID: <code>${d.id || '—'}</code>`;
+        }
+        case 'create_contact': {
+          const props = data.properties || {};
+          return `Contact created.<br>Email: <strong>${props.email || '—'}</strong> — HubSpot ID: <code>${data.id || '—'}</code>`;
+        }
+        case 'batch_upsert_contacts': {
+          const results = data.results || [];
+          const first = results[0];
+          const props = first?.properties || {};
+          return `${results.length} contact${results.length !== 1 ? 's' : ''} created or updated.<br>${first ? `Email: <strong>${props.email || '—'}</strong> — HubSpot ID: <code>${first.id || '—'}</code>` : ''}`;
+        }
+        case 'update_contact':
+          return `Contact updated. Written properties: ${Object.keys(data.properties || {}).join(', ') || '—'}.`;
+        case 'archive_contact':
+          return `Contact soft-deleted. API returned HTTP 204 — the record is hidden from views but remains restorable.`;
+        case 'list_contacts': {
+          const results = data.results || [];
+          const first = results[0]?.properties;
+          return `${results.length} contact${results.length !== 1 ? 's' : ''} returned.${first ? `<br>First: <strong>${[first.firstname, first.lastname].filter(Boolean).join(' ') || '—'}</strong> — ${first.email || '—'}` : ''}`;
+        }
+        case 'add_list_members':
+          return `Members added. API returned HTTP 204 — no body.`;
+        case 'update_list_name':
+          return `List renamed successfully.`;
+        case 'batch_create_associations': {
+          const results = data.results || [];
+          return `${results.length} association${results.length !== 1 ? 's' : ''} created between CRM objects.`;
+        }
+        case 'batch_read_associations': {
+          const results = data.results || [];
+          const total = results.reduce((acc, r) => acc + (r.to?.length || 0), 0);
+          return `${results.length} source object${results.length !== 1 ? 's' : ''} queried — ${total} association${total !== 1 ? 's' : ''} found.`;
+        }
+        case 'batch_delete_associations':
+          return `Associations removed. API returned HTTP 204 — the objects themselves remain intact.`;
+        default:
+          return `Operation completed successfully.`;
+      }
+    } catch (_) {
+      return `Operation completed.`;
+    }
+  }
+
+  function toggleFlip(flipId, btnId) {
+    const card = document.getElementById(flipId);
+    const btn = document.getElementById(btnId);
+    if (!card || !btn) return;
+    const flipped = card.classList.toggle('flipped');
+    btn.textContent = flipped ? '‹ Summary' : 'View JSON ›';
   }
 
   function unlockTools() {
@@ -3354,6 +3511,7 @@
       const tool = tools.find(t => t.name === cfg.name);
       if (!tool) return '';
       const argsJson = JSON.stringify(cfg.args, null, 2);
+      const desc = TOOL_DESCRIPTIONS[tool.name] || tool.short_desc || '';
       return `
         <div class="tool-card">
           <div class="tool-card-header">
@@ -3363,36 +3521,53 @@
             </div>
             <span class="tool-card-method-badge">${tool.method.toUpperCase()}</span>
           </div>
-          ${tool.short_desc ? `<div class="tool-card-desc">${tool.short_desc}</div>` : ''}
+          ${desc ? `<div class="tool-card-desc">${desc}</div>` : ''}
           <div class="tool-args-label">Arguments</div>
           <textarea class="tool-args" id="tc-args-${i}">${argsJson}</textarea>
           <div class="tool-run-row">
-            <button class="tool-run-btn" onclick="runToolCard('${tool.name}','tc-args-${i}','tc-resp-${i}','tc-status-${i}')">Run &#8594;</button>
+            <button class="tool-run-btn" id="tc-btn-${i}" onclick="runToolCard('${tool.name}',${i})">Run &#8594;</button>
             <span class="tool-run-status" id="tc-status-${i}"></span>
           </div>
-          <pre class="tool-response" id="tc-resp-${i}"></pre>
+          <div id="tc-result-${i}" style="display:none">
+            <div class="result-flip" id="tc-flip-${i}">
+              <div class="result-flip-inner">
+                <div class="result-flip-front" id="tc-front-${i}"></div>
+                <div class="result-flip-back" id="tc-back-${i}"></div>
+              </div>
+            </div>
+            <div class="flip-toggle-row">
+              <button class="flip-btn" id="tc-flipbtn-${i}" onclick="toggleFlip('tc-flip-${i}','tc-flipbtn-${i}')">View JSON ›</button>
+            </div>
+          </div>
         </div>`;
     }).join('');
   }
 
-  async function runToolCard(toolName, argsId, respId, statusId) {
-    const argsEl = document.getElementById(argsId);
-    const respEl = document.getElementById(respId);
-    const statusEl = document.getElementById(statusId);
-    const btn = argsEl?.closest('.tool-card')?.querySelector('.tool-run-btn');
+  async function runToolCard(toolName, idx) {
+    const argsEl = document.getElementById(`tc-args-${idx}`);
+    const statusEl = document.getElementById(`tc-status-${idx}`);
+    const btn = document.getElementById(`tc-btn-${idx}`);
+    const resultEl = document.getElementById(`tc-result-${idx}`);
+    const frontEl = document.getElementById(`tc-front-${idx}`);
+    const backEl = document.getElementById(`tc-back-${idx}`);
+    const flipEl = document.getElementById(`tc-flip-${idx}`);
+    const flipBtnEl = document.getElementById(`tc-flipbtn-${idx}`);
 
     let args;
     try {
       args = JSON.parse(argsEl.value);
     } catch (e) {
-      if (respEl) { respEl.textContent = `JSON parse error: ${e.message}`; respEl.className = 'tool-response error visible'; }
+      if (frontEl) { frontEl.innerHTML = `<span style="color:var(--red)">JSON parse error: ${e.message}</span>`; frontEl.className = 'result-flip-front is-error'; }
+      if (resultEl) resultEl.style.display = 'block';
       return;
     }
 
     const demoKey = (document.getElementById('demo-password')?.value || '').trim();
     if (btn) btn.disabled = true;
-    if (respEl) { respEl.className = 'tool-response'; respEl.textContent = ''; }
     if (statusEl) statusEl.textContent = 'calling API…';
+    if (resultEl) resultEl.style.display = 'none';
+    if (flipEl) flipEl.classList.remove('flipped');
+    if (flipBtnEl) flipBtnEl.textContent = 'View JSON ›';
 
     try {
       const resp = await fetch(`${BACKEND_URL}/api/run-tool`, {
@@ -3402,13 +3577,16 @@
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
-      if (respEl) { respEl.textContent = JSON.stringify(data, null, 2); respEl.className = 'tool-response visible'; }
+      if (frontEl) { frontEl.innerHTML = summarizeResponse(toolName, data); frontEl.className = 'result-flip-front'; }
+      if (backEl) backEl.textContent = JSON.stringify(data, null, 2);
       if (statusEl) statusEl.textContent = `✓ ${resp.status}`;
     } catch (err) {
-      if (respEl) { respEl.textContent = err.message; respEl.className = 'tool-response error visible'; }
+      if (frontEl) { frontEl.innerHTML = `<strong style="color:var(--red)">Error</strong><br>${err.message}`; frontEl.className = 'result-flip-front is-error'; }
+      if (backEl) backEl.textContent = err.message;
       if (statusEl) statusEl.textContent = '✗ error';
     } finally {
       if (btn) btn.disabled = false;
+      if (resultEl) resultEl.style.display = 'block';
     }
   }
 
