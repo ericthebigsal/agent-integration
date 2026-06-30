@@ -1403,45 +1403,68 @@
     font-family: 'IBM Plex Mono', monospace;
   }
 
-  /* ── Sequence diagram run bar (embedded in card) ── */
-  .seq-run-bar {
+  /* ── Demo key entry (once, above diagram) ── */
+  .demo-key-section {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 10px 16px;
-    border-top: 1px solid var(--border);
-    background: var(--bg-card);
+    gap: 14px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
   }
-  .seq-key-input {
+  .demo-key-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     flex: 1;
-    max-width: 170px;
-    padding: 6px 10px;
+  }
+  .demo-key-input {
+    padding: 7px 11px;
     border: 1px solid var(--border);
     border-radius: 6px;
     font-size: 13px;
+    font-family: 'IBM Plex Mono', monospace;
     background: var(--bg);
     color: var(--ink);
-    font-family: 'IBM Plex Mono', monospace;
     outline: none;
+    width: 220px;
     transition: border-color 0.15s;
   }
-  .seq-key-input:focus { border-color: #6366f1; }
-  .seq-run-btn {
-    padding: 6px 18px;
+  .demo-key-input:focus { border-color: #1a1a1a; }
+  .demo-key-input:disabled { opacity: 0.5; background: var(--bg-card); }
+  .demo-key-set-btn {
+    padding: 7px 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    background: var(--bg-card);
+    color: var(--ink);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .demo-key-set-btn:hover { border-color: #1a1a1a; }
+  .demo-key-status { font-size: 12.5px; display: flex; align-items: center; gap: 6px; }
+  .demo-key-change { font-size: 11px; color: var(--ink-muted); cursor: pointer; text-decoration: underline; background: none; border: none; padding: 0; font-family: inherit; }
+
+  /* ── Full-width Go button inside diagram card ── */
+  .seq-go-bar { border-top: 1px solid var(--border); }
+  .seq-go-btn {
+    display: block;
+    width: 100%;
+    padding: 13px;
     background: #1a1a1a;
     color: #fff;
     border: none;
-    border-radius: 6px;
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
     font-family: 'IBM Plex Mono', monospace;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.05em;
     transition: background 0.15s, opacity 0.15s;
-    white-space: nowrap;
+    text-align: center;
   }
-  .seq-run-btn:hover:not(:disabled) { background: #333; }
-  .seq-run-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .seq-go-btn:hover:not(:disabled) { background: #333; }
+  .seq-go-btn:disabled { opacity: 0.28; cursor: not-allowed; }
 
   /* ── Sequence diagram step animation ── */
   .seq-step-group { transition: opacity 0.25s ease; }
@@ -2282,6 +2305,16 @@
       <div class="toggle-group" id="s5-scenario-toggle"></div>
     </div>
 
+    <div class="demo-key-section">
+      <span class="field-label">DEMO KEY</span>
+      <div class="demo-key-row">
+        <input id="demo-key-input" type="password" placeholder="enter demo key"
+          class="demo-key-input" onkeydown="if(event.key==='Enter')storeDemoKey()" />
+        <button class="demo-key-set-btn" onclick="storeDemoKey()">Store →</button>
+        <span id="demo-key-status" class="demo-key-status"></span>
+      </div>
+    </div>
+
     <div id="scenario-header" style="margin-bottom:4px">
       <p class="scenario-goal" id="scenario-goal"></p>
       <div class="scenario-steps-preview" id="scenario-preview"></div>
@@ -2837,9 +2870,8 @@
         + `<span class="seq-legend-item" style="color:#9ca3af">╌╌ response</span>`
         + `<span class="seq-legend-item" style="color:#059669;font-style:italic">● captures context</span>`
         + `</div>`
-        + `<div class="seq-run-bar">`
-        + `<input id="demo-password" type="password" placeholder="demo key" autocomplete="off" class="seq-key-input" onkeydown="if(event.key==='Enter')runScenario()"/>`
-        + `<button id="scenario-run-btn" class="seq-run-btn" onclick="runScenario()">▶ Run</button>`
+        + `<div class="seq-go-bar">`
+        + `<button id="scenario-run-btn" class="seq-go-btn" onclick="runScenario()"${demoKey ? '' : ' disabled'}>▶ Go</button>`
         + `</div>`;
     }
   }
@@ -2855,6 +2887,7 @@
   let generatedFilename = 'mcp-server.py';
   let screen5Platform = 'klaviyo';
   let screen5ScenarioIndex = 0;
+  let demoKey = '';
 
   function cacheKey() { return `${selectedPlatform}-${selectedScenarioIndex}`; }
   function isCached() { return !!specCache[cacheKey()]; }
@@ -4020,6 +4053,39 @@
     });
   }
 
+  // ── Demo key management ───────────────────────────────────────────────────
+
+  function storeDemoKey() {
+    const input = document.getElementById('demo-key-input');
+    const key = (input?.value || '').trim();
+    demoKey = key;
+    const status = document.getElementById('demo-key-status');
+    if (status) {
+      if (key) {
+        status.innerHTML =
+          `<span style="color:#059669;font-weight:600">✓ Key stored</span>`
+          + ` <button class="demo-key-change" onclick="clearDemoKey()">change</button>`;
+        if (input) { input.disabled = true; }
+      } else {
+        status.innerHTML = '';
+        if (input) { input.disabled = false; }
+      }
+    }
+    // Enable/disable the Go button for the current scenario
+    const btn = document.getElementById('scenario-run-btn');
+    if (btn) btn.disabled = !demoKey;
+  }
+
+  function clearDemoKey() {
+    demoKey = '';
+    const input = document.getElementById('demo-key-input');
+    if (input) { input.disabled = false; input.value = ''; input.focus(); }
+    const status = document.getElementById('demo-key-status');
+    if (status) status.innerHTML = '';
+    const btn = document.getElementById('scenario-run-btn');
+    if (btn) btn.disabled = true;
+  }
+
   // ── Run scenario ──────────────────────────────────────────────────────────
 
   async function runScenario() {
@@ -4039,7 +4105,6 @@
 
     const ts = Date.now().toString().slice(-6);
     const ctx = { email: `alex.chen.${ts}@example.com`, ts };
-    const demoKey = (document.getElementById('demo-password')?.value || '').trim();
 
     for (let i = 0; i < scenario.steps.length; i++) {
       const step = scenario.steps[i];
