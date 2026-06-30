@@ -1402,7 +1402,96 @@
     font-size: 10px;
     font-family: 'IBM Plex Mono', monospace;
   }
-  .scenario-results { display: flex; flex-direction: column; }
+
+  /* ── Sequence diagram run bar (embedded in card) ── */
+  .seq-run-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-card);
+  }
+  .seq-key-input {
+    flex: 1;
+    max-width: 170px;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'IBM Plex Mono', monospace;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .seq-key-input:focus { border-color: #6366f1; }
+  .seq-run-btn {
+    padding: 6px 18px;
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.02em;
+    transition: background 0.15s, opacity 0.15s;
+    white-space: nowrap;
+  }
+  .seq-run-btn:hover:not(:disabled) { background: #333; }
+  .seq-run-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* ── Sequence diagram step animation ── */
+  .seq-step-group { transition: opacity 0.25s ease; }
+  .seq-step-group.seq-pending { opacity: 0.18; }
+  .seq-step-group.seq-active  { opacity: 1; }
+  .seq-step-group.seq-done    { opacity: 1; }
+  .seq-step-group.seq-error   { opacity: 1; }
+
+  @keyframes seq-draw-r {
+    from { stroke-dashoffset: 350; }
+    to   { stroke-dashoffset: 0; }
+  }
+  @keyframes seq-draw-l {
+    from { stroke-dashoffset: -350; }
+    to   { stroke-dashoffset: 0; }
+  }
+  .seq-step-group.seq-active .seq-call-line {
+    stroke-dasharray: 350; stroke-dashoffset: 350;
+    animation: seq-draw-r 0.38s ease-out forwards;
+  }
+  .seq-step-group.seq-active .seq-http-line {
+    stroke-dasharray: 350; stroke-dashoffset: 350;
+    animation: seq-draw-r 0.38s 0.42s ease-out forwards;
+  }
+  .seq-step-group.seq-active .seq-resp-line {
+    stroke-dasharray: 350; stroke-dashoffset: -350;
+    animation: seq-draw-l 0.32s 0.88s ease-out forwards;
+  }
+
+  /* ── Compact result strip ── */
+  .scenario-results { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
+  .seq-result-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 12.5px;
+  }
+  .seq-result-icon { font-size: 13px; flex-shrink: 0; width: 16px; text-align: center; }
+  .seq-result-fn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 12px;
+    min-width: 190px;
+  }
+  .seq-result-summary { color: var(--ink-muted); flex: 1; font-size: 12px; line-height: 1.5; }
+  .seq-result-code { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-muted); margin-left: auto; white-space: nowrap; }
   .scenario-result-step { }
   .result-step-header {
     display: flex;
@@ -2197,12 +2286,6 @@
       <p class="scenario-goal" id="scenario-goal"></p>
       <div class="scenario-steps-preview" id="scenario-preview"></div>
     </div>
-    <div class="scenario-run-row">
-      <input id="demo-password" type="password" placeholder="Demo password" autocomplete="off"
-        style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;width:200px;outline:none" />
-      <button class="btn-primary" id="scenario-run-btn" onclick="runScenario()">Run scenario &#8594;</button>
-    </div>
-    <p style="font-size:12px;color:var(--ink-muted);margin-top:8px;margin-bottom:28px">Enter the demo password to execute against a live account.</p>
     <div class="scenario-results" id="scenario-results"></div>
   </div>
 
@@ -2753,6 +2836,10 @@
         + `<span class="seq-legend-item" style="color:#6366f1">── HTTP request</span>`
         + `<span class="seq-legend-item" style="color:#9ca3af">╌╌ response</span>`
         + `<span class="seq-legend-item" style="color:#059669;font-style:italic">● captures context</span>`
+        + `</div>`
+        + `<div class="seq-run-bar">`
+        + `<input id="demo-password" type="password" placeholder="demo key" autocomplete="off" class="seq-key-input" onkeydown="if(event.key==='Enter')runScenario()"/>`
+        + `<button id="scenario-run-btn" class="seq-run-btn" onclick="runScenario()">▶ Run</button>`
         + `</div>`;
     }
   }
@@ -3688,18 +3775,18 @@
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   }
 
-  function _seqArrow(x1, x2, y, color, dashed) {
-    // Solid right-pointing arrow from x1 to x2
+  function _seqArrow(x1, x2, y, color, dashed, lineClass) {
     const tipX = x2 - 2, lineX2 = tipX - 7;
     const da = dashed ? ' stroke-dasharray="4,3"' : '';
-    return `<line x1="${x1}" y1="${y}" x2="${lineX2}" y2="${y}" stroke="${color}" stroke-width="1.5"${da}/>`
+    const cls = lineClass ? ` class="${lineClass}"` : '';
+    return `<line x1="${x1}" y1="${y}" x2="${lineX2}" y2="${y}" stroke="${color}" stroke-width="1.5"${da}${cls}/>`
          + `<polygon points="${lineX2},${y-4} ${tipX},${y} ${lineX2},${y+4}" fill="${color}"/>`;
   }
 
-  function _seqRetArrow(x1, x2, y, color) {
-    // Dashed left-pointing return arrow from x1 back to x2 (x2 < x1)
+  function _seqRetArrow(x1, x2, y, color, lineClass) {
     const tipX = x2 + 2, lineX2 = tipX + 7;
-    return `<line x1="${x1}" y1="${y}" x2="${lineX2}" y2="${y}" stroke="${color}" stroke-width="1" stroke-dasharray="4,3"/>`
+    const cls = lineClass ? ` class="${lineClass}"` : '';
+    return `<line x1="${x1}" y1="${y}" x2="${lineX2}" y2="${y}" stroke="${color}" stroke-width="1" stroke-dasharray="4,3"${cls}/>`
          + `<polygon points="${lineX2},${y-3.5} ${tipX},${y} ${lineX2},${y+3.5}" fill="${color}"/>`;
   }
 
@@ -3724,10 +3811,10 @@
 
     let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">`;
 
-    // Actor boxes
+    // Actor boxes (with IDs for animation targeting)
     actors.forEach((name, i) => {
       const cx = ax[i], bx = cx - actorW / 2;
-      s += `<rect x="${bx}" y="${actorY}" width="${actorW}" height="${actorH}" rx="6" fill="${WHITE}" stroke="${BORDER}" stroke-width="1.5"/>`;
+      s += `<rect id="seq-actor-rect-${i}" x="${bx}" y="${actorY}" width="${actorW}" height="${actorH}" rx="6" fill="${WHITE}" stroke="${BORDER}" stroke-width="1.5" style="transition:stroke 0.2s,stroke-width 0.2s"/>`;
       s += `<text x="${cx}" y="${actorY + actorH / 2 + 4}" text-anchor="middle" ${SANS} font-size="11" font-weight="600" fill="${INK}">${esc(name)}</text>`;
     });
 
@@ -3736,37 +3823,41 @@
       s += `<line x1="${x}" y1="${lifeY}" x2="${x}" y2="${H - 8}" stroke="${BORDER}" stroke-width="1" stroke-dasharray="4,3"/>`;
     });
 
-    // Steps
+    // Steps — each wrapped in a <g> for animation targeting
     meta.steps.forEach((step, i) => {
       const y = stepsY + i * stepH;
       const label = esc(scenario.steps[i].label);
 
+      s += `<g id="seq-step-${i}" class="seq-step-group seq-pending">`;
+
       // Step badge + label
-      s += `<circle cx="14" cy="${y + 11}" r="9" fill="${INK}"/>`;
-      s += `<text x="14" y="${y + 15}" text-anchor="middle" ${SANS} font-size="9" font-weight="700" fill="${WHITE}">${i + 1}</text>`;
+      s += `<circle id="seq-badge-c-${i}" cx="14" cy="${y + 11}" r="9" fill="${INK}"/>`;
+      s += `<text id="seq-badge-t-${i}" x="14" y="${y + 15}" text-anchor="middle" ${SANS} font-size="9" font-weight="700" fill="${WHITE}">${i + 1}</text>`;
       s += `<text x="28" y="${y + 15}" ${SANS} font-size="11" font-weight="600" fill="${INK}">${label}</text>`;
 
       // Arrow 1: Agent → MCP (tool call)
       const callY = y + 33;
-      s += _seqArrow(ax[0], ax[1], callY, INK, false);
+      s += _seqArrow(ax[0], ax[1], callY, INK, false, 'seq-call-line');
       s += `<text x="${(ax[0]+ax[1])/2}" y="${callY - 6}" text-anchor="middle" ${MONO} font-size="9.5" fill="${INK}">${esc(step.call)}</text>`;
 
       // Arrow 2: MCP → API (HTTP request)
       const httpY = y + 57;
-      s += _seqArrow(ax[1], ax[2], httpY, PURPLE, false);
+      s += _seqArrow(ax[1], ax[2], httpY, PURPLE, false, 'seq-http-line');
       s += `<text x="${(ax[1]+ax[2])/2}" y="${httpY - 6}" text-anchor="middle" ${MONO} font-size="9.5" fill="${PURPLE}">${esc(step.http)}</text>`;
 
       // Return arrow: API → MCP (dashed response)
       const retY = y + 76;
-      s += _seqRetArrow(ax[2], ax[1], retY, FAINT);
+      s += _seqRetArrow(ax[2], ax[1], retY, FAINT, 'seq-resp-line');
       s += `<text x="${(ax[1]+ax[2])/2}" y="${retY - 4}" text-anchor="middle" ${MONO} font-size="8.5" fill="${FAINT}">${esc(step.ret)}</text>`;
 
-      // Captures annotation
+      // Captures annotation (id for live value update)
       if (step.captures) {
-        s += `<text x="${ax[1]}" y="${retY + 14}" text-anchor="middle" ${SANS} font-size="9" font-style="italic" fill="${GREEN}">captures ${esc(step.captures)}</text>`;
+        s += `<text id="seq-captures-${i}" x="${ax[1]}" y="${retY + 14}" text-anchor="middle" ${SANS} font-size="9" font-style="italic" fill="${GREEN}">captures ${esc(step.captures)}</text>`;
       }
 
-      // Step separator
+      s += `</g>`; // end seq-step-{i}
+
+      // Step separator lives outside the group so it stays fully visible
       if (i < meta.steps.length - 1) {
         const sepY = y + stepH - 4;
         s += `<line x1="0" y1="${sepY}" x2="${W}" y2="${sepY}" stroke="${BORDER}" stroke-width="1"/>`;
@@ -3863,6 +3954,74 @@
     btn.textContent = flipped ? '‹ Summary' : 'View JSON ›';
   }
 
+  // ── Sequence diagram animation helpers ────────────────────────────────────
+
+  function seqResetDiagram(numSteps) {
+    for (let i = 0; i < numSteps; i++) {
+      const g = document.getElementById(`seq-step-${i}`);
+      if (g) g.className.baseVal = 'seq-step-group seq-pending';
+      const bc = document.getElementById(`seq-badge-c-${i}`);
+      if (bc) bc.setAttribute('fill', '#1a1a1a');
+      const bt = document.getElementById(`seq-badge-t-${i}`);
+      if (bt) bt.textContent = i + 1;
+      // Clear any inline styles locked in from previous run
+      ['seq-call-line','seq-http-line','seq-resp-line'].forEach(cls => {
+        const el = document.querySelector(`#seq-step-${i} .${cls}`);
+        if (el) el.removeAttribute('style');
+      });
+      const cap = document.getElementById(`seq-captures-${i}`);
+      if (cap && cap.dataset.orig) cap.textContent = cap.dataset.orig;
+    }
+    [0,1,2].forEach(ai => {
+      const r = document.getElementById(`seq-actor-rect-${ai}`);
+      if (r) { r.setAttribute('stroke', '#e5e7eb'); r.setAttribute('stroke-width', '1.5'); }
+    });
+  }
+
+  function seqActivateStep(stepIdx, numSteps) {
+    for (let i = 0; i < numSteps; i++) {
+      const g = document.getElementById(`seq-step-${i}`);
+      if (!g) continue;
+      if (i === stepIdx) {
+        g.className.baseVal = 'seq-step-group seq-active';
+      } else if (i < stepIdx) {
+        // already done — leave as-is
+      } else {
+        g.className.baseVal = 'seq-step-group seq-pending';
+      }
+    }
+    [0,1,2].forEach(ai => {
+      const r = document.getElementById(`seq-actor-rect-${ai}`);
+      if (r) { r.setAttribute('stroke', '#6366f1'); r.setAttribute('stroke-width', '2'); }
+    });
+  }
+
+  function seqCompleteStep(stepIdx, ok) {
+    // Lock in arrow positions as inline styles before removing seq-active
+    // (prevents snap-back when the CSS animation rule no longer applies)
+    ['seq-call-line','seq-http-line'].forEach(cls => {
+      const el = document.querySelector(`#seq-step-${stepIdx} .${cls}`);
+      if (el) { el.style.strokeDasharray = 'none'; el.style.strokeDashoffset = '0'; el.style.animation = 'none'; }
+    });
+    const resp = document.querySelector(`#seq-step-${stepIdx} .seq-resp-line`);
+    if (resp) { resp.style.strokeDasharray = '4,3'; resp.style.strokeDashoffset = '0'; resp.style.animation = 'none'; }
+
+    const g = document.getElementById(`seq-step-${stepIdx}`);
+    if (g) g.className.baseVal = `seq-step-group seq-${ok ? 'done' : 'error'}`;
+
+    const bc = document.getElementById(`seq-badge-c-${stepIdx}`);
+    if (bc) bc.setAttribute('fill', ok ? '#059669' : '#ef4444');
+    const bt = document.getElementById(`seq-badge-t-${stepIdx}`);
+    if (bt) bt.textContent = ok ? '✓' : '✗';
+
+    [0,1,2].forEach(ai => {
+      const r = document.getElementById(`seq-actor-rect-${ai}`);
+      if (r) { r.setAttribute('stroke', '#e5e7eb'); r.setAttribute('stroke-width', '1.5'); }
+    });
+  }
+
+  // ── Run scenario ──────────────────────────────────────────────────────────
+
   async function runScenario() {
     const key = `${screen5Platform}-${screen5ScenarioIndex}`;
     const scenario = SCENARIOS[key];
@@ -3873,8 +4032,10 @@
     if (!btn || !resultsEl) return;
 
     btn.disabled = true;
-    btn.textContent = 'Running…';
+    btn.textContent = '…';
     resultsEl.innerHTML = '';
+
+    seqResetDiagram(scenario.steps.length);
 
     const ts = Date.now().toString().slice(-6);
     const ctx = { email: `alex.chen.${ts}@example.com`, ts };
@@ -3883,40 +4044,22 @@
     for (let i = 0; i < scenario.steps.length; i++) {
       const step = scenario.steps[i];
 
-      // Connector line between steps
-      if (i > 0) {
-        const conn = document.createElement('div');
-        conn.className = 'step-connector';
-        conn.id = `sc-conn-${i}`;
-        resultsEl.appendChild(conn);
-      }
+      seqActivateStep(i, scenario.steps.length);
 
-      // Step result block
-      const stepEl = document.createElement('div');
-      stepEl.className = 'scenario-result-step';
-      stepEl.innerHTML = `
-        <div class="result-step-header">
-          <span class="step-num" id="sc-num-${i}">${i + 1}</span>
-          <span class="step-fn">${step.tool}()</span>
-          <span class="result-step-status" id="sc-status-${i}">calling…</span>
-        </div>
-        <div class="result-flip" id="sc-flip-${i}">
-          <div class="result-flip-inner">
-            <div class="result-flip-front" id="sc-front-${i}" style="color:var(--ink-muted);font-size:13px">Waiting…</div>
-            <div class="result-flip-back" id="sc-back-${i}"></div>
-          </div>
-        </div>
-        <div class="flip-toggle-row">
-          <button class="flip-btn" id="sc-flipbtn-${i}" onclick="toggleFlip('sc-flip-${i}','sc-flipbtn-${i}')">View JSON ›</button>
-        </div>`;
-      resultsEl.appendChild(stepEl);
-      stepEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Save original captures text for reset
+      const capEl = document.getElementById(`seq-captures-${i}`);
+      if (capEl && !capEl.dataset.orig) capEl.dataset.orig = capEl.textContent;
 
-      const numEl   = document.getElementById(`sc-num-${i}`);
-      const statEl  = document.getElementById(`sc-status-${i}`);
-      const frontEl = document.getElementById(`sc-front-${i}`);
-      const backEl  = document.getElementById(`sc-back-${i}`);
-      const connEl  = document.getElementById(`sc-conn-${i}`);
+      // Compact result row (loading state)
+      const item = document.createElement('div');
+      item.className = 'seq-result-item';
+      item.innerHTML =
+        `<span class="seq-result-icon" id="sri-icon-${i}" style="color:var(--ink-muted)">◌</span>`
+        + `<span class="seq-result-fn">${step.tool}()</span>`
+        + `<span class="seq-result-summary" id="sri-summary-${i}" style="color:var(--ink-faint)">calling…</span>`
+        + `<span class="seq-result-code" id="sri-code-${i}"></span>`;
+      resultsEl.appendChild(item);
+      item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
       try {
         const args = step.args(ctx);
@@ -3929,26 +4072,35 @@
         if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
 
         step.extract(data, ctx);
+        seqCompleteStep(i, true);
 
-        if (numEl)  { numEl.textContent = '✓'; numEl.className = 'step-num done'; }
-        if (statEl) { statEl.textContent = resp.status; statEl.className = 'result-step-status ok'; }
-        if (frontEl) { frontEl.innerHTML = summarizeResponse(step.tool, data); frontEl.style.color = ''; frontEl.className = 'result-flip-front'; }
-        if (backEl)  backEl.textContent = JSON.stringify(data, null, 2);
-        if (connEl)  connEl.classList.add('done');
+        // Show actual captured value on the diagram
+        if (step.captures && ctx[step.captures] && capEl) {
+          const val = String(ctx[step.captures]).slice(0, 22);
+          capEl.textContent = `captures ${step.captures} = ${val}`;
+        }
+
+        document.getElementById(`sri-icon-${i}`).textContent = '✓';
+        document.getElementById(`sri-icon-${i}`).style.color = '#059669';
+        document.getElementById(`sri-summary-${i}`).innerHTML = summarizeResponse(step.tool, data);
+        document.getElementById(`sri-summary-${i}`).style.color = '';
+        const codeEl = document.getElementById(`sri-code-${i}`);
+        if (codeEl) { codeEl.textContent = resp.status; codeEl.style.color = '#059669'; }
 
       } catch (err) {
-        if (numEl)  { numEl.textContent = '✗'; numEl.className = 'step-num errored'; }
-        if (statEl) { statEl.textContent = 'error'; statEl.className = 'result-step-status err'; }
-        if (frontEl) { frontEl.innerHTML = `<strong style="color:#FF7B72">Error</strong><br>${err.message}`; frontEl.style.color = ''; frontEl.className = 'result-flip-front is-error'; }
-        if (backEl) backEl.textContent = err.message;
+        seqCompleteStep(i, false);
+        document.getElementById(`sri-icon-${i}`).textContent = '✗';
+        document.getElementById(`sri-icon-${i}`).style.color = '#ef4444';
+        document.getElementById(`sri-summary-${i}`).innerHTML = `<span style="color:#ef4444">${err.message}</span>`;
+        document.getElementById(`sri-summary-${i}`).style.color = '';
         break;
       }
 
-      if (i < scenario.steps.length - 1) await new Promise(r => setTimeout(r, 500));
+      if (i < scenario.steps.length - 1) await new Promise(r => setTimeout(r, 300));
     }
 
     btn.disabled = false;
-    btn.textContent = 'Run again →';
+    btn.textContent = '▶ Run again';
   }
 
   // keyboard nav
