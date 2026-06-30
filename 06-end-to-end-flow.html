@@ -2540,7 +2540,7 @@
     if (status) status.style.display = 'none';
 
     if (!screen1Fetched) {
-      // Before fetch: show scenario context, no API details
+      // Before any fetch: show the selected scenario as a preview / illustration
       document.getElementById('spec-explorer-title').textContent = scenario?.name || '';
       document.getElementById('spec-explorer-version').textContent = '';
       document.getElementById('spec-explorer-server').textContent = '';
@@ -2548,14 +2548,28 @@
       const body = document.getElementById('spec-explorer-body');
       if (body) body.innerHTML = `<div class="scenario-blurb">${scenario?.blurb || scenario?.description || ''}</div>`;
     } else {
-      // Restore from cache (scenario switch without re-fetch)
-      const cached = specCache[cacheKey()];
+      // At least one spec is cached — show the selected scenario if available,
+      // otherwise the first cached scenario (background fetch may still be in-flight).
+      const allScenarios = p.scenarios;
+      const cached = specCache[cacheKey()]
+        || specCache[allScenarios.map((_, i) => `${selectedPlatform}-${i}`).find(k => specCache[k])];
       if (cached) {
         document.getElementById('spec-explorer-title').textContent = cached.title;
         document.getElementById('spec-explorer-version').textContent = cached.version;
         document.getElementById('spec-explorer-server').textContent = cached.server;
-        document.getElementById('spec-explorer-count').textContent = cached.countText;
-        if (scenario?.requiredOps) renderRequiredOps(scenario.requiredOps, cached.paths);
+        // Build combined required-ops list from all scenarios that are cached
+        const allOps = allScenarios.flatMap((s, i) => {
+          const c = specCache[`${selectedPlatform}-${i}`];
+          return c && s.requiredOps ? s.requiredOps.map(op => ({ ...op, _paths: c.paths })) : [];
+        });
+        const confirmed = allOps.filter(op => opExistsInSpec(op.method, op.path, op._paths)).length;
+        const cachedCount = allScenarios.filter((_, i) => specCache[`${selectedPlatform}-${i}`]).length;
+        document.getElementById('spec-explorer-count').textContent =
+          `${confirmed} confirmed · ${allOps.length - confirmed} not in spec · ${cachedCount}/${allScenarios.length} specs analyzed`;
+        // Show requiredOps for the selected scenario against its own spec
+        const selCached = specCache[cacheKey()];
+        if (selCached && scenario?.requiredOps) renderRequiredOps(scenario.requiredOps, selCached.paths);
+        else if (cached && scenario?.requiredOps) renderRequiredOps(scenario.requiredOps, cached.paths);
       }
     }
   }
@@ -2621,12 +2635,14 @@
   }
 
   function renderWarnings() {
-    const scenario = PLATFORMS[selectedPlatform].scenarios[selectedScenarioIndex];
+    const scenarios = PLATFORMS[selectedPlatform].scenarios;
     const wList = document.getElementById('warning-list');
     const ackSection = document.getElementById('ack-section');
-    if (!wList || !scenario) return;
+    if (!wList) return;
 
-    wList.innerHTML = scenario.warnings.map(w => `
+    // Aggregate warnings from all scenarios (the generated MCP server covers all of them)
+    const allWarnings = scenarios.flatMap(s => s.warnings || []);
+    wList.innerHTML = allWarnings.map(w => `
       <div class="warning-item ${w.sev}">
         <div class="warn-icon">${w.icon}</div>
         <div class="warn-body">
@@ -2636,9 +2652,16 @@
       </div>
     `).join('');
 
+    // Aggregate acks from all scenarios, deduplicating by id
+    const seen = new Set();
+    const allAcks = scenarios.flatMap(s => s.acks || []).filter(a => {
+      if (seen.has(a.id)) return false;
+      seen.add(a.id);
+      return true;
+    });
     ackSection.innerHTML = `
       <div class="ack-label">Required acknowledgments</div>
-      ${scenario.acks.map(a => `
+      ${allAcks.map(a => `
         <div class="ack-item">
           <input type="checkbox" id="${a.id}" onchange="checkAcks()">
           <label for="${a.id}">${a.label}</label>
@@ -3117,6 +3140,8 @@
         countText: `${found} confirmed · ${rOps.length - found} not in spec · ${pathKeys.length} total paths`,
       };
       updatePlatformIndicators();
+      // If the user is currently looking at this scenario's tab, refresh the explorer
+      if (cKey === cacheKey() && current === 1) renderSpecExplorer();
     } catch (_) {}
   }
 
