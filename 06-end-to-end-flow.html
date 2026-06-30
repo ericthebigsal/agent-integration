@@ -1168,7 +1168,7 @@
   }
   .btn-download:hover { border-color: var(--ink-muted); color: var(--ink); }
 
-  .tool-cards { display: flex; flex-direction: column; gap: 16px; }
+  .tool-cards { display: flex; flex-direction: column; gap: 16px; } /* kept for potential reuse */
   .tool-card {
     background: var(--bg-card);
     border: 1.5px solid var(--border);
@@ -1324,6 +1324,102 @@
     align-items: center;
     margin-bottom: 8px;
   }
+
+  .scenario-goal {
+    font-size: 13.5px;
+    color: var(--ink-muted);
+    line-height: 1.65;
+    margin-bottom: 16px;
+    max-width: 600px;
+  }
+  .scenario-steps-preview {
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+  .step-preview-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .step-preview-row:last-child { border-bottom: none; }
+  .step-num {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--ink-muted);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-num.done {
+    background: var(--green-light);
+    color: var(--green-text);
+    border-color: var(--green);
+    font-size: 12px;
+  }
+  .step-num.errored { background: rgba(255,123,114,0.12); color: #FF7B72; border-color: rgba(255,123,114,0.4); }
+  .step-fn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ink);
+    min-width: 210px;
+  }
+  .step-label {
+    font-size: 12px;
+    color: var(--ink-muted);
+  }
+  .step-endpoint {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-faint, #9ca3af);
+    margin-left: auto;
+  }
+  .scenario-run-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .scenario-results { display: flex; flex-direction: column; }
+  .scenario-result-step { }
+  .result-step-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+    margin-top: 20px;
+  }
+  .result-step-label {
+    font-size: 12.5px;
+    color: var(--ink-muted);
+  }
+  .result-step-status {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-muted);
+    margin-left: auto;
+  }
+  .result-step-status.ok { color: var(--green-text); }
+  .result-step-status.err { color: #FF7B72; }
+  .step-connector {
+    width: 2px;
+    height: 20px;
+    background: var(--border);
+    margin-left: 10px;
+    margin-top: 2px;
+  }
+  .step-connector.done { background: var(--green); }
 
   .s2-intro {
     font-size: 13.5px;
@@ -2077,15 +2173,17 @@
       <div class="screen-sub" id="screen5-sub">Generated MCP tools called against a live API. Each tool below is from the server generated in Step 4 — real httpx calls, real responses.</div>
     </div>
 
-    <div id="demo-unlock" style="margin-bottom:24px">
-      <div class="demo-unlock-row">
-        <input id="demo-password" type="password" placeholder="Demo password" autocomplete="off"
-          style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;width:200px;outline:none" />
-        <button class="btn-primary" onclick="unlockTools()">Unlock tools &#8594;</button>
-      </div>
-      <p style="font-size:12px;color:var(--ink-muted)">Enter the demo password to enable live API calls.</p>
+    <div id="scenario-header" style="margin-bottom:4px">
+      <p class="scenario-goal" id="scenario-goal"></p>
+      <div class="scenario-steps-preview" id="scenario-preview"></div>
     </div>
-    <div id="tool-cards" class="tool-cards"></div>
+    <div class="scenario-run-row">
+      <input id="demo-password" type="password" placeholder="Demo password" autocomplete="off"
+        style="padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:14px;width:200px;outline:none" />
+      <button class="btn-primary" id="scenario-run-btn" onclick="runScenario()">Run scenario &#8594;</button>
+    </div>
+    <p style="font-size:12px;color:var(--ink-muted);margin-top:8px;margin-bottom:28px">Enter the demo password to execute against a live account.</p>
+    <div class="scenario-results" id="scenario-results"></div>
   </div>
 
   <!-- SKILL EXPLANATION MODAL -->
@@ -2546,17 +2644,33 @@
   }
 
   function renderScreen5() {
-    const p = PLATFORMS[selectedPlatform];
     const sub = document.getElementById('screen5-sub');
-    if (sub) sub.textContent = p.screen5Desc;
-    const unlockEl = document.getElementById('demo-unlock');
-    const cardsEl = document.getElementById('tool-cards');
-    if (toolsUnlocked) {
-      if (unlockEl) unlockEl.style.display = 'none';
-      renderToolCards();
-    } else {
-      if (unlockEl) unlockEl.style.display = 'block';
-      if (cardsEl) cardsEl.innerHTML = '';
+    if (sub) sub.textContent = 'The generated MCP tools run in sequence — each step\'s output feeds into the next call.';
+    renderScenarioView();
+  }
+
+  function renderScenarioView() {
+    const key = `${selectedPlatform}-${selectedScenarioIndex}`;
+    const scenario = SCENARIOS[key];
+    const goalEl = document.getElementById('scenario-goal');
+    const previewEl = document.getElementById('scenario-preview');
+    const resultsEl = document.getElementById('scenario-results');
+    const runBtn = document.getElementById('scenario-run-btn');
+    if (!scenario) return;
+    if (goalEl) goalEl.textContent = scenario.goal;
+    if (resultsEl) resultsEl.innerHTML = '';
+    if (runBtn) runBtn.textContent = 'Run scenario →';
+    if (previewEl) {
+      previewEl.innerHTML = scenario.steps.map((step, i) => {
+        const tool = generatedTools.find(t => t.name === step.tool);
+        const endpoint = tool ? `${tool.method.toUpperCase()} ${tool.path}` : '';
+        return `<div class="step-preview-row">
+          <span class="step-num">${i + 1}</span>
+          <span class="step-fn">${step.tool}()</span>
+          <span class="step-label">${step.label}</span>
+          ${endpoint ? `<span class="step-endpoint">${endpoint}</span>` : ''}
+        </div>`;
+      }).join('');
     }
   }
 
@@ -2569,7 +2683,6 @@
   let generatedCode = '';
   let generatedTools = [];
   let generatedFilename = 'mcp-server.py';
-  let toolsUnlocked = false;
 
   function cacheKey() { return `${selectedPlatform}-${selectedScenarioIndex}`; }
   function isCached() { return !!specCache[cacheKey()]; }
@@ -3341,68 +3454,122 @@
     URL.revokeObjectURL(a.href);
   }
 
-  function getDemoArgs(platform, scenarioIndex) {
-    const ts = Date.now().toString().slice(-6);
-    const cfg = {
-      'klaviyo-0': [
+  const SCENARIOS = {
+    'klaviyo-0': {
+      goal: 'Onboard a VIP customer — write a profile with custom properties to Klaviyo, then confirm it landed in the account.',
+      steps: [
         {
-          name: 'upsert_profile',
-          args: { email: `alex.chen.${ts}@example.com`, first_name: 'Alex', last_name: 'Chen', properties: { vip_tier: 'gold', lifetime_value: 4200 } }
+          tool: 'upsert_profile',
+          label: 'Create VIP profile',
+          args: ctx => ({ email: ctx.email, first_name: 'Alex', last_name: 'Chen', properties: { vip_tier: 'gold', lifetime_value: 4200 } }),
+          extract: (data, ctx) => { ctx.profileId = data.data?.id; },
         },
         {
-          name: 'list_profiles',
-          args: { page_size: 5 }
-        },
-      ],
-      'klaviyo-1': [
-        {
-          name: 'create_list',
-          args: { name: `Early Access — Summer Drop ${ts}` }
-        },
-        {
-          name: 'add_list_member',
-          args: { list_id: '<paste list id from create_list result>', profile_id: '<paste profile id from upsert_profile result>' }
+          tool: 'list_profiles',
+          label: 'Confirm profile is in system',
+          args: () => ({ page_size: 5 }),
+          extract: () => {},
         },
       ],
-      'klaviyo-2': [
+    },
+    'klaviyo-1': {
+      goal: 'Build an audience — create a targeted marketing list and enroll a VIP profile as its first member.',
+      steps: [
         {
-          name: 'create_segment',
-          args: { name: `VIP Gold Customers ${ts}`, property_name: 'vip_tier', property_value: 'gold' }
+          tool: 'upsert_profile',
+          label: 'Create profile to enroll',
+          args: ctx => ({ email: ctx.email, first_name: 'Alex', last_name: 'Chen', properties: { vip_tier: 'gold' } }),
+          extract: (data, ctx) => { ctx.profileId = data.data?.id; },
+        },
+        {
+          tool: 'create_list',
+          label: 'Create the marketing list',
+          args: ctx => ({ name: `Early Access — Summer Drop ${ctx.ts}` }),
+          extract: (data, ctx) => { ctx.listId = data.data?.id; },
+        },
+        {
+          tool: 'add_list_member',
+          label: 'Enroll profile in list',
+          args: ctx => ({ list_id: ctx.listId, profile_id: ctx.profileId }),
+          extract: () => {},
         },
       ],
-      'hubspot-0': [
+    },
+    'klaviyo-2': {
+      goal: 'Define a dynamic VIP audience — write a profile with the target property, then create a segment that auto-enrolls all matching profiles.',
+      steps: [
         {
-          name: 'batch_upsert_contacts',
-          args: { contacts: [{ email: `alex.chen.${ts}@example.com`, firstname: 'Alex', lastname: 'Chen', company: 'Acme Corp' }] }
+          tool: 'upsert_profile',
+          label: 'Write VIP property to profile',
+          args: ctx => ({ email: ctx.email, first_name: 'Alex', last_name: 'Chen', properties: { vip_tier: 'gold' } }),
+          extract: (data, ctx) => { ctx.profileId = data.data?.id; },
         },
         {
-          name: 'list_contacts',
-          args: { limit: 5 }
-        },
-      ],
-      'hubspot-1': [
-        {
-          name: 'create_list',
-          args: { name: `Q3 Campaign Targets ${ts}`, processing_type: 'MANUAL' }
-        },
-        {
-          name: 'add_list_members',
-          args: { list_id: '<paste list id from create_list result>', record_ids: [] }
+          tool: 'create_segment',
+          label: 'Create segment that captures them',
+          args: ctx => ({ name: `VIP Gold Customers ${ctx.ts}`, property_name: 'vip_tier', property_value: 'gold' }),
+          extract: (data, ctx) => { ctx.segmentId = data.data?.id; },
         },
       ],
-      'hubspot-2': [
+    },
+    'hubspot-0': {
+      goal: 'Sync a new lead — upsert a contact record into HubSpot, then pull the list to confirm it appears in the CRM.',
+      steps: [
         {
-          name: 'batch_read_associations',
-          args: { from_object_type: 'contacts', to_object_type: 'companies', from_ids: [] }
+          tool: 'batch_upsert_contacts',
+          label: 'Upsert contact record',
+          args: ctx => ({ contacts: [{ email: ctx.email, firstname: 'Alex', lastname: 'Chen', company: 'Acme Corp' }] }),
+          extract: (data, ctx) => { ctx.contactId = data.results?.[0]?.id; },
         },
         {
-          name: 'batch_create_associations',
-          args: { from_object_type: 'contacts', to_object_type: 'companies', associations: [{ from_id: '<contact_id>', to_id: '<company_id>', association_type_id: 1 }] }
+          tool: 'list_contacts',
+          label: 'Confirm contact in CRM',
+          args: () => ({ limit: 5 }),
+          extract: () => {},
         },
       ],
-    };
-    return cfg[`${platform}-${scenarioIndex}`] || [];
-  }
+    },
+    'hubspot-1': {
+      goal: 'Build a campaign audience — sync a contact, create a targeted list, and enroll them as the first member.',
+      steps: [
+        {
+          tool: 'batch_upsert_contacts',
+          label: 'Sync contact to CRM',
+          args: ctx => ({ contacts: [{ email: ctx.email, firstname: 'Alex', lastname: 'Chen' }] }),
+          extract: (data, ctx) => { ctx.contactId = data.results?.[0]?.id; },
+        },
+        {
+          tool: 'create_list',
+          label: 'Create campaign list',
+          args: ctx => ({ name: `Q3 Campaign Targets ${ctx.ts}`, processing_type: 'MANUAL' }),
+          extract: (data, ctx) => { ctx.listId = String(data.listId || data.list?.listId || data.id || ''); },
+        },
+        {
+          tool: 'add_list_members',
+          label: 'Enroll contact in list',
+          args: ctx => ({ list_id: ctx.listId, record_ids: [ctx.contactId].filter(Boolean) }),
+          extract: () => {},
+        },
+      ],
+    },
+    'hubspot-2': {
+      goal: 'Map a CRM relationship — sync a contact record, then look up their current company associations in the HubSpot object graph.',
+      steps: [
+        {
+          tool: 'batch_upsert_contacts',
+          label: 'Sync contact record',
+          args: ctx => ({ contacts: [{ email: ctx.email, firstname: 'Alex', lastname: 'Chen', company: 'Acme Corp' }] }),
+          extract: (data, ctx) => { ctx.contactId = data.results?.[0]?.id; },
+        },
+        {
+          tool: 'batch_read_associations',
+          label: 'Read company associations',
+          args: ctx => ({ from_object_type: 'contacts', to_object_type: 'companies', from_ids: [ctx.contactId].filter(Boolean) }),
+          extract: () => {},
+        },
+      ],
+    },
+  };
 
   function summarizeResponse(toolName, data) {
     try {
@@ -3491,103 +3658,92 @@
     btn.textContent = flipped ? '‹ Summary' : 'View JSON ›';
   }
 
-  function unlockTools() {
-    toolsUnlocked = true;
-    const unlockEl = document.getElementById('demo-unlock');
-    if (unlockEl) unlockEl.style.display = 'none';
-    renderToolCards();
-  }
+  async function runScenario() {
+    const key = `${selectedPlatform}-${selectedScenarioIndex}`;
+    const scenario = SCENARIOS[key];
+    if (!scenario) return;
 
-  function renderToolCards() {
-    const container = document.getElementById('tool-cards');
-    if (!container) return;
-    const tools = generatedTools.length > 0 ? generatedTools : [];
-    if (tools.length === 0) {
-      container.innerHTML = '<p style="color:var(--ink-muted);font-size:13px">Go back to Step 4 to generate the MCP server first.</p>';
-      return;
-    }
-    const featured = getDemoArgs(selectedPlatform, selectedScenarioIndex);
-    container.innerHTML = featured.map((cfg, i) => {
-      const tool = tools.find(t => t.name === cfg.name);
-      if (!tool) return '';
-      const argsJson = JSON.stringify(cfg.args, null, 2);
-      const desc = TOOL_DESCRIPTIONS[tool.name] || tool.short_desc || '';
-      return `
-        <div class="tool-card">
-          <div class="tool-card-header">
-            <div>
-              <div class="tool-card-name">${tool.name}()</div>
-              <div class="tool-card-path">${tool.method.toUpperCase()} ${tool.path}</div>
-            </div>
-            <span class="tool-card-method-badge">${tool.method.toUpperCase()}</span>
-          </div>
-          ${desc ? `<div class="tool-card-desc">${desc}</div>` : ''}
-          <div class="tool-args-label">Arguments</div>
-          <textarea class="tool-args" id="tc-args-${i}">${argsJson}</textarea>
-          <div class="tool-run-row">
-            <button class="tool-run-btn" id="tc-btn-${i}" onclick="runToolCard('${tool.name}',${i})">Run &#8594;</button>
-            <span class="tool-run-status" id="tc-status-${i}"></span>
-          </div>
-          <div id="tc-result-${i}" style="display:none">
-            <div class="result-flip" id="tc-flip-${i}">
-              <div class="result-flip-inner">
-                <div class="result-flip-front" id="tc-front-${i}"></div>
-                <div class="result-flip-back" id="tc-back-${i}"></div>
-              </div>
-            </div>
-            <div class="flip-toggle-row">
-              <button class="flip-btn" id="tc-flipbtn-${i}" onclick="toggleFlip('tc-flip-${i}','tc-flipbtn-${i}')">View JSON ›</button>
-            </div>
-          </div>
-        </div>`;
-    }).join('');
-  }
+    const btn = document.getElementById('scenario-run-btn');
+    const resultsEl = document.getElementById('scenario-results');
+    if (!btn || !resultsEl) return;
 
-  async function runToolCard(toolName, idx) {
-    const argsEl = document.getElementById(`tc-args-${idx}`);
-    const statusEl = document.getElementById(`tc-status-${idx}`);
-    const btn = document.getElementById(`tc-btn-${idx}`);
-    const resultEl = document.getElementById(`tc-result-${idx}`);
-    const frontEl = document.getElementById(`tc-front-${idx}`);
-    const backEl = document.getElementById(`tc-back-${idx}`);
-    const flipEl = document.getElementById(`tc-flip-${idx}`);
-    const flipBtnEl = document.getElementById(`tc-flipbtn-${idx}`);
+    btn.disabled = true;
+    btn.textContent = 'Running…';
+    resultsEl.innerHTML = '';
 
-    let args;
-    try {
-      args = JSON.parse(argsEl.value);
-    } catch (e) {
-      if (frontEl) { frontEl.innerHTML = `<span style="color:var(--red)">JSON parse error: ${e.message}</span>`; frontEl.className = 'result-flip-front is-error'; }
-      if (resultEl) resultEl.style.display = 'block';
-      return;
-    }
-
+    const ts = Date.now().toString().slice(-6);
+    const ctx = { email: `alex.chen.${ts}@example.com`, ts };
     const demoKey = (document.getElementById('demo-password')?.value || '').trim();
-    if (btn) btn.disabled = true;
-    if (statusEl) statusEl.textContent = 'calling API…';
-    if (resultEl) resultEl.style.display = 'none';
-    if (flipEl) flipEl.classList.remove('flipped');
-    if (flipBtnEl) flipBtnEl.textContent = 'View JSON ›';
 
-    try {
-      const resp = await fetch(`${BACKEND_URL}/api/run-tool`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platform: selectedPlatform, tool_name: toolName, args, demo_key: demoKey }),
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
-      if (frontEl) { frontEl.innerHTML = summarizeResponse(toolName, data); frontEl.className = 'result-flip-front'; }
-      if (backEl) backEl.textContent = JSON.stringify(data, null, 2);
-      if (statusEl) statusEl.textContent = `✓ ${resp.status}`;
-    } catch (err) {
-      if (frontEl) { frontEl.innerHTML = `<strong style="color:var(--red)">Error</strong><br>${err.message}`; frontEl.className = 'result-flip-front is-error'; }
-      if (backEl) backEl.textContent = err.message;
-      if (statusEl) statusEl.textContent = '✗ error';
-    } finally {
-      if (btn) btn.disabled = false;
-      if (resultEl) resultEl.style.display = 'block';
+    for (let i = 0; i < scenario.steps.length; i++) {
+      const step = scenario.steps[i];
+
+      // Connector line between steps
+      if (i > 0) {
+        const conn = document.createElement('div');
+        conn.className = 'step-connector';
+        conn.id = `sc-conn-${i}`;
+        resultsEl.appendChild(conn);
+      }
+
+      // Step result block
+      const stepEl = document.createElement('div');
+      stepEl.className = 'scenario-result-step';
+      stepEl.innerHTML = `
+        <div class="result-step-header">
+          <span class="step-num" id="sc-num-${i}">${i + 1}</span>
+          <span class="step-fn">${step.tool}()</span>
+          <span class="result-step-status" id="sc-status-${i}">calling…</span>
+        </div>
+        <div class="result-flip" id="sc-flip-${i}">
+          <div class="result-flip-inner">
+            <div class="result-flip-front" id="sc-front-${i}" style="color:var(--ink-muted);font-size:13px">Waiting…</div>
+            <div class="result-flip-back" id="sc-back-${i}"></div>
+          </div>
+        </div>
+        <div class="flip-toggle-row">
+          <button class="flip-btn" id="sc-flipbtn-${i}" onclick="toggleFlip('sc-flip-${i}','sc-flipbtn-${i}')">View JSON ›</button>
+        </div>`;
+      resultsEl.appendChild(stepEl);
+      stepEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+      const numEl   = document.getElementById(`sc-num-${i}`);
+      const statEl  = document.getElementById(`sc-status-${i}`);
+      const frontEl = document.getElementById(`sc-front-${i}`);
+      const backEl  = document.getElementById(`sc-back-${i}`);
+      const connEl  = document.getElementById(`sc-conn-${i}`);
+
+      try {
+        const args = step.args(ctx);
+        const resp = await fetch(`${BACKEND_URL}/api/run-tool`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ platform: selectedPlatform, tool_name: step.tool, args, demo_key: demoKey }),
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
+
+        step.extract(data, ctx);
+
+        if (numEl)  { numEl.textContent = '✓'; numEl.className = 'step-num done'; }
+        if (statEl) { statEl.textContent = resp.status; statEl.className = 'result-step-status ok'; }
+        if (frontEl) { frontEl.innerHTML = summarizeResponse(step.tool, data); frontEl.style.color = ''; frontEl.className = 'result-flip-front'; }
+        if (backEl)  backEl.textContent = JSON.stringify(data, null, 2);
+        if (connEl)  connEl.classList.add('done');
+
+      } catch (err) {
+        if (numEl)  { numEl.textContent = '✗'; numEl.className = 'step-num errored'; }
+        if (statEl) { statEl.textContent = 'error'; statEl.className = 'result-step-status err'; }
+        if (frontEl) { frontEl.innerHTML = `<strong style="color:#FF7B72">Error</strong><br>${err.message}`; frontEl.style.color = ''; frontEl.className = 'result-flip-front is-error'; }
+        if (backEl) backEl.textContent = err.message;
+        break;
+      }
+
+      if (i < scenario.steps.length - 1) await new Promise(r => setTimeout(r, 500));
     }
+
+    btn.disabled = false;
+    btn.textContent = 'Run again →';
   }
 
   // keyboard nav
