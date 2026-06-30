@@ -2173,6 +2173,15 @@
       <div class="screen-sub" id="screen5-sub">Generated MCP tools called against a live API. Each tool below is from the server generated in Step 4 — real httpx calls, real responses.</div>
     </div>
 
+    <div class="field-group" style="margin-bottom:14px">
+      <span class="field-label">Platform</span>
+      <div class="toggle-group" id="s5-platform-toggle"></div>
+    </div>
+    <div class="field-group" style="margin-bottom:20px">
+      <span class="field-label">Scenario</span>
+      <div class="toggle-group" id="s5-scenario-toggle"></div>
+    </div>
+
     <div id="scenario-header" style="margin-bottom:4px">
       <p class="scenario-goal" id="scenario-goal"></p>
       <div class="scenario-steps-preview" id="scenario-preview"></div>
@@ -2644,13 +2653,50 @@
   }
 
   function renderScreen5() {
+    screen5Platform = selectedPlatform;
+    screen5ScenarioIndex = selectedScenarioIndex;
     const sub = document.getElementById('screen5-sub');
     if (sub) sub.textContent = 'The generated MCP tools run in sequence — each step\'s output feeds into the next call.';
+    renderScreen5PlatformToggle();
+    renderScreen5ScenarioToggle();
+    renderScenarioView();
+  }
+
+  function renderScreen5PlatformToggle() {
+    const container = document.getElementById('s5-platform-toggle');
+    if (!container) return;
+    container.innerHTML = Object.entries(PLATFORMS).map(([key]) => {
+      const sel = key === screen5Platform ? ' selected' : '';
+      return `<button class="toggle-btn${sel}" onclick="switchScreen5Platform('${key}')">${platformLabel(key)}</button>`;
+    }).join('');
+  }
+
+  function switchScreen5Platform(platform) {
+    screen5Platform = platform;
+    screen5ScenarioIndex = 0;
+    renderScreen5PlatformToggle();
+    renderScreen5ScenarioToggle();
+    renderScenarioView();
+  }
+
+  function renderScreen5ScenarioToggle() {
+    const container = document.getElementById('s5-scenario-toggle');
+    if (!container) return;
+    const p = PLATFORMS[screen5Platform];
+    container.innerHTML = p.scenarios.map((s, i) => {
+      const sel = i === screen5ScenarioIndex ? ' selected' : '';
+      return `<button class="toggle-btn${sel}" onclick="switchScreen5Scenario(${i})">${s.name}</button>`;
+    }).join('');
+  }
+
+  function switchScreen5Scenario(idx) {
+    screen5ScenarioIndex = idx;
+    renderScreen5ScenarioToggle();
     renderScenarioView();
   }
 
   function renderScenarioView() {
-    const key = `${selectedPlatform}-${selectedScenarioIndex}`;
+    const key = `${screen5Platform}-${screen5ScenarioIndex}`;
     const scenario = SCENARIOS[key];
     const goalEl = document.getElementById('scenario-goal');
     const previewEl = document.getElementById('scenario-preview');
@@ -2661,16 +2707,14 @@
     if (resultsEl) resultsEl.innerHTML = '';
     if (runBtn) runBtn.textContent = 'Run scenario →';
     if (previewEl) {
-      previewEl.innerHTML = scenario.steps.map((step, i) => {
-        const tool = generatedTools.find(t => t.name === step.tool);
-        const endpoint = tool ? `${tool.method.toUpperCase()} ${tool.path}` : '';
-        return `<div class="step-preview-row">
+      previewEl.innerHTML = scenario.steps.map((step, i) => `
+        <div class="step-preview-row">
           <span class="step-num">${i + 1}</span>
           <span class="step-fn">${step.tool}()</span>
           <span class="step-label">${step.label}</span>
-          ${endpoint ? `<span class="step-endpoint">${endpoint}</span>` : ''}
-        </div>`;
-      }).join('');
+          <span class="step-endpoint">${step.endpoint}</span>
+        </div>`
+      ).join('');
     }
   }
 
@@ -2683,6 +2727,8 @@
   let generatedCode = '';
   let generatedTools = [];
   let generatedFilename = 'mcp-server.py';
+  let screen5Platform = 'klaviyo';
+  let screen5ScenarioIndex = 0;
 
   function cacheKey() { return `${selectedPlatform}-${selectedScenarioIndex}`; }
   function isCached() { return !!specCache[cacheKey()]; }
@@ -3456,117 +3502,81 @@
 
   const SCENARIOS = {
     'klaviyo-0': {
+      name: 'Manage Profiles',
       goal: 'Onboard a VIP customer — write a profile with custom properties to Klaviyo, then confirm it landed in the account.',
       steps: [
-        {
-          tool: 'upsert_profile',
-          label: 'Create VIP profile',
+        { tool: 'upsert_profile',  endpoint: 'POST /api/profiles', label: 'Create VIP profile',
           args: ctx => ({ email: ctx.email, first_name: 'Alex', last_name: 'Chen', properties: { vip_tier: 'gold', lifetime_value: 4200 } }),
-          extract: (data, ctx) => { ctx.profileId = data.data?.id; },
-        },
-        {
-          tool: 'list_profiles',
-          label: 'Confirm profile is in system',
+          extract: (data, ctx) => { ctx.profileId = data.data?.id; } },
+        { tool: 'list_profiles',   endpoint: 'GET /api/profiles',  label: 'Confirm profile is in system',
           args: () => ({ page_size: 5 }),
-          extract: () => {},
-        },
+          extract: () => {} },
       ],
     },
     'klaviyo-1': {
+      name: 'Manage Lists',
       goal: 'Build an audience — create a targeted marketing list and enroll a VIP profile as its first member.',
       steps: [
-        {
-          tool: 'upsert_profile',
-          label: 'Create profile to enroll',
+        { tool: 'upsert_profile',   endpoint: 'POST /api/profiles',                           label: 'Create profile to enroll',
           args: ctx => ({ email: ctx.email, first_name: 'Alex', last_name: 'Chen', properties: { vip_tier: 'gold' } }),
-          extract: (data, ctx) => { ctx.profileId = data.data?.id; },
-        },
-        {
-          tool: 'create_list',
-          label: 'Create the marketing list',
+          extract: (data, ctx) => { ctx.profileId = data.data?.id; } },
+        { tool: 'create_list',      endpoint: 'POST /api/lists',                               label: 'Create the marketing list',
           args: ctx => ({ name: `Early Access — Summer Drop ${ctx.ts}` }),
-          extract: (data, ctx) => { ctx.listId = data.data?.id; },
-        },
-        {
-          tool: 'add_list_member',
-          label: 'Enroll profile in list',
+          extract: (data, ctx) => { ctx.listId = data.data?.id; } },
+        { tool: 'add_list_member',  endpoint: 'POST /api/lists/{id}/relationships/profiles',   label: 'Enroll profile in list',
           args: ctx => ({ list_id: ctx.listId, profile_id: ctx.profileId }),
-          extract: () => {},
-        },
+          extract: () => {} },
       ],
     },
     'klaviyo-2': {
+      name: 'Manage Segments',
       goal: 'Define a dynamic VIP audience — write a profile with the target property, then create a segment that auto-enrolls all matching profiles.',
       steps: [
-        {
-          tool: 'upsert_profile',
-          label: 'Write VIP property to profile',
+        { tool: 'upsert_profile',   endpoint: 'POST /api/profiles',  label: 'Write VIP property to profile',
           args: ctx => ({ email: ctx.email, first_name: 'Alex', last_name: 'Chen', properties: { vip_tier: 'gold' } }),
-          extract: (data, ctx) => { ctx.profileId = data.data?.id; },
-        },
-        {
-          tool: 'create_segment',
-          label: 'Create segment that captures them',
+          extract: (data, ctx) => { ctx.profileId = data.data?.id; } },
+        { tool: 'create_segment',   endpoint: 'POST /api/segments',  label: 'Create segment that captures them',
           args: ctx => ({ name: `VIP Gold Customers ${ctx.ts}`, property_name: 'vip_tier', property_value: 'gold' }),
-          extract: (data, ctx) => { ctx.segmentId = data.data?.id; },
-        },
+          extract: (data, ctx) => { ctx.segmentId = data.data?.id; } },
       ],
     },
     'hubspot-0': {
+      name: 'Manage Contacts',
       goal: 'Sync a new lead — upsert a contact record into HubSpot, then pull the list to confirm it appears in the CRM.',
       steps: [
-        {
-          tool: 'batch_upsert_contacts',
-          label: 'Upsert contact record',
+        { tool: 'batch_upsert_contacts', endpoint: 'POST /crm/v3/objects/contacts/batch/upsert', label: 'Upsert contact record',
           args: ctx => ({ contacts: [{ email: ctx.email, firstname: 'Alex', lastname: 'Chen', company: 'Acme Corp' }] }),
-          extract: (data, ctx) => { ctx.contactId = data.results?.[0]?.id; },
-        },
-        {
-          tool: 'list_contacts',
-          label: 'Confirm contact in CRM',
+          extract: (data, ctx) => { ctx.contactId = data.results?.[0]?.id; } },
+        { tool: 'list_contacts',         endpoint: 'GET /crm/v3/objects/contacts',               label: 'Confirm contact in CRM',
           args: () => ({ limit: 5 }),
-          extract: () => {},
-        },
+          extract: () => {} },
       ],
     },
     'hubspot-1': {
+      name: 'Manage Lists',
       goal: 'Build a campaign audience — sync a contact, create a targeted list, and enroll them as the first member.',
       steps: [
-        {
-          tool: 'batch_upsert_contacts',
-          label: 'Sync contact to CRM',
+        { tool: 'batch_upsert_contacts', endpoint: 'POST /crm/v3/objects/contacts/batch/upsert', label: 'Sync contact to CRM',
           args: ctx => ({ contacts: [{ email: ctx.email, firstname: 'Alex', lastname: 'Chen' }] }),
-          extract: (data, ctx) => { ctx.contactId = data.results?.[0]?.id; },
-        },
-        {
-          tool: 'create_list',
-          label: 'Create campaign list',
+          extract: (data, ctx) => { ctx.contactId = data.results?.[0]?.id; } },
+        { tool: 'create_list',           endpoint: 'POST /crm/v3/lists',                          label: 'Create campaign list',
           args: ctx => ({ name: `Q3 Campaign Targets ${ctx.ts}`, processing_type: 'MANUAL' }),
-          extract: (data, ctx) => { ctx.listId = String(data.listId || data.list?.listId || data.id || ''); },
-        },
-        {
-          tool: 'add_list_members',
-          label: 'Enroll contact in list',
+          extract: (data, ctx) => { ctx.listId = String(data.listId || data.list?.listId || data.id || ''); } },
+        { tool: 'add_list_members',      endpoint: 'PUT /crm/v3/lists/{id}/memberships/add',      label: 'Enroll contact in list',
           args: ctx => ({ list_id: ctx.listId, record_ids: [ctx.contactId].filter(Boolean) }),
-          extract: () => {},
-        },
+          extract: () => {} },
       ],
     },
     'hubspot-2': {
+      name: 'Manage Associations',
       goal: 'Map a CRM relationship — sync a contact record, then look up their current company associations in the HubSpot object graph.',
       steps: [
-        {
-          tool: 'batch_upsert_contacts',
-          label: 'Sync contact record',
+        { tool: 'batch_upsert_contacts',  endpoint: 'POST /crm/v3/objects/contacts/batch/upsert',              label: 'Sync contact record',
           args: ctx => ({ contacts: [{ email: ctx.email, firstname: 'Alex', lastname: 'Chen', company: 'Acme Corp' }] }),
-          extract: (data, ctx) => { ctx.contactId = data.results?.[0]?.id; },
-        },
-        {
-          tool: 'batch_read_associations',
-          label: 'Read company associations',
+          extract: (data, ctx) => { ctx.contactId = data.results?.[0]?.id; } },
+        { tool: 'batch_read_associations', endpoint: 'POST /crm/v4/associations/{from}/{to}/batch/read',         label: 'Read company associations',
           args: ctx => ({ from_object_type: 'contacts', to_object_type: 'companies', from_ids: [ctx.contactId].filter(Boolean) }),
-          extract: () => {},
-        },
+          extract: () => {} },
       ],
     },
   };
@@ -3659,7 +3669,7 @@
   }
 
   async function runScenario() {
-    const key = `${selectedPlatform}-${selectedScenarioIndex}`;
+    const key = `${screen5Platform}-${screen5ScenarioIndex}`;
     const scenario = SCENARIOS[key];
     if (!scenario) return;
 
@@ -3718,7 +3728,7 @@
         const resp = await fetch(`${BACKEND_URL}/api/run-tool`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ platform: selectedPlatform, tool_name: step.tool, args, demo_key: demoKey }),
+          body: JSON.stringify({ platform: screen5Platform, tool_name: step.tool, args, demo_key: demoKey }),
         });
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
