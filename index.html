@@ -1391,6 +1391,17 @@
     gap: 8px;
     align-items: center;
   }
+  .seq-legend {
+    display: flex;
+    gap: 20px;
+    padding: 8px 16px 10px;
+    border-top: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .seq-legend-item {
+    font-size: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
   .scenario-results { display: flex; flex-direction: column; }
   .scenario-result-step { }
   .result-step-header {
@@ -2707,14 +2718,14 @@
     if (resultsEl) resultsEl.innerHTML = '';
     if (runBtn) runBtn.textContent = 'Run scenario →';
     if (previewEl) {
-      previewEl.innerHTML = scenario.steps.map((step, i) => `
-        <div class="step-preview-row">
-          <span class="step-num">${i + 1}</span>
-          <span class="step-fn">${step.tool}()</span>
-          <span class="step-label">${step.label}</span>
-          <span class="step-endpoint">${step.endpoint}</span>
-        </div>`
-      ).join('');
+      const svgHtml = buildSequenceSVG(key, PLATFORMS[screen5Platform].name);
+      previewEl.innerHTML = svgHtml
+        + `<div class="seq-legend">`
+        + `<span class="seq-legend-item" style="color:#1a1a1a">── tool call</span>`
+        + `<span class="seq-legend-item" style="color:#6366f1">── HTTP request</span>`
+        + `<span class="seq-legend-item" style="color:#9ca3af">╌╌ response</span>`
+        + `<span class="seq-legend-item" style="color:#059669;font-style:italic">● captures context</span>`
+        + `</div>`;
     }
   }
 
@@ -3580,6 +3591,130 @@
       ],
     },
   };
+
+  // Display metadata for the sequence diagram — one entry per SCENARIOS step.
+  // call: label on Agent→MCP arrow  http: label on MCP→API arrow
+  // ret: label on return arrow       captures: context var extracted (or null)
+  const SCENARIO_META = {
+    'klaviyo-0': { steps: [
+      { call: 'upsert_profile(email, vip_tier: "gold")', http: 'POST /api/profiles',         ret: '→ profile.id',    captures: 'profileId' },
+      { call: 'list_profiles(page_size: 5)',             http: 'GET /api/profiles',           ret: '→ profiles[ ]',   captures: null },
+    ]},
+    'klaviyo-1': { steps: [
+      { call: 'upsert_profile(email, vip_tier: "gold")', http: 'POST /api/profiles',         ret: '→ profile.id',    captures: 'profileId' },
+      { call: 'create_list("Early Access…")',            http: 'POST /api/lists',             ret: '→ list.id',       captures: 'listId' },
+      { call: 'add_list_member(listId ↑, profileId ↑)', http: 'POST /lists/{id}/profiles',   ret: '204 No Content',  captures: null },
+    ]},
+    'klaviyo-2': { steps: [
+      { call: 'upsert_profile(email, vip_tier: "gold")', http: 'POST /api/profiles',         ret: '→ profile.id',    captures: 'profileId' },
+      { call: 'create_segment(name, vip_tier: "gold")',  http: 'POST /api/segments',         ret: '→ segment.id',    captures: 'segmentId' },
+    ]},
+    'hubspot-0': { steps: [
+      { call: 'batch_upsert_contacts([email, company])', http: 'POST /contacts/batch/upsert', ret: '→ contact.id',   captures: 'contactId' },
+      { call: 'list_contacts(limit: 5)',                 http: 'GET /crm/v3/objects/contacts',ret: '→ contacts[ ]',   captures: null },
+    ]},
+    'hubspot-1': { steps: [
+      { call: 'batch_upsert_contacts([email])',          http: 'POST /contacts/batch/upsert', ret: '→ contact.id',   captures: 'contactId' },
+      { call: 'create_list("Q3 Campaign Targets")',      http: 'POST /crm/v3/lists',          ret: '→ list.id',      captures: 'listId' },
+      { call: 'add_list_members(listId ↑, contactId ↑)',http: 'PUT /lists/{id}/memberships', ret: '204 OK',          captures: null },
+    ]},
+    'hubspot-2': { steps: [
+      { call: 'batch_upsert_contacts([email, company])', http: 'POST /contacts/batch/upsert', ret: '→ contact.id',   captures: 'contactId' },
+      { call: 'batch_read_associations(contactId ↑)',    http: 'POST /associations/../batch/read', ret: '→ associations[ ]', captures: null },
+    ]},
+  };
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function _seqArrow(x1, x2, y, color, dashed) {
+    // Solid right-pointing arrow from x1 to x2
+    const tipX = x2 - 2, lineX2 = tipX - 7;
+    const da = dashed ? ' stroke-dasharray="4,3"' : '';
+    return `<line x1="${x1}" y1="${y}" x2="${lineX2}" y2="${y}" stroke="${color}" stroke-width="1.5"${da}/>`
+         + `<polygon points="${lineX2},${y-4} ${tipX},${y} ${lineX2},${y+4}" fill="${color}"/>`;
+  }
+
+  function _seqRetArrow(x1, x2, y, color) {
+    // Dashed left-pointing return arrow from x1 back to x2 (x2 < x1)
+    const tipX = x2 + 2, lineX2 = tipX + 7;
+    return `<line x1="${x1}" y1="${y}" x2="${lineX2}" y2="${y}" stroke="${color}" stroke-width="1" stroke-dasharray="4,3"/>`
+         + `<polygon points="${lineX2},${y-3.5} ${tipX},${y} ${lineX2},${y+3.5}" fill="${color}"/>`;
+  }
+
+  function buildSequenceSVG(scenarioKey, platformName) {
+    const meta = SCENARIO_META[scenarioKey];
+    const scenario = SCENARIOS[scenarioKey];
+    if (!meta || !scenario) return '';
+
+    const W = 622;
+    const ax = [70, 311, 552];  // actor center X: Agent, MCP Server, API
+    const actorW = 122, actorH = 32;
+    const actors = ['Your Agent', 'MCP Server', platformName + ' API'];
+    const actorY = 12, lifeY = actorY + actorH;
+    const stepsY = lifeY + 16;
+    const stepH = 98;
+    const H = stepsY + meta.steps.length * stepH + 14;
+
+    const INK = '#1a1a1a', MUTED = '#6b7280', FAINT = '#9ca3af',
+          GREEN = '#059669', PURPLE = '#6366f1', BORDER = '#e5e7eb', WHITE = '#ffffff';
+    const MONO = `font-family="IBM Plex Mono, monospace"`;
+    const SANS = `font-family="Inter, sans-serif"`;
+
+    let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block">`;
+
+    // Actor boxes
+    actors.forEach((name, i) => {
+      const cx = ax[i], bx = cx - actorW / 2;
+      s += `<rect x="${bx}" y="${actorY}" width="${actorW}" height="${actorH}" rx="6" fill="${WHITE}" stroke="${BORDER}" stroke-width="1.5"/>`;
+      s += `<text x="${cx}" y="${actorY + actorH / 2 + 4}" text-anchor="middle" ${SANS} font-size="11" font-weight="600" fill="${INK}">${esc(name)}</text>`;
+    });
+
+    // Lifelines
+    ax.forEach(x => {
+      s += `<line x1="${x}" y1="${lifeY}" x2="${x}" y2="${H - 8}" stroke="${BORDER}" stroke-width="1" stroke-dasharray="4,3"/>`;
+    });
+
+    // Steps
+    meta.steps.forEach((step, i) => {
+      const y = stepsY + i * stepH;
+      const label = esc(scenario.steps[i].label);
+
+      // Step badge + label
+      s += `<circle cx="14" cy="${y + 11}" r="9" fill="${INK}"/>`;
+      s += `<text x="14" y="${y + 15}" text-anchor="middle" ${SANS} font-size="9" font-weight="700" fill="${WHITE}">${i + 1}</text>`;
+      s += `<text x="28" y="${y + 15}" ${SANS} font-size="11" font-weight="600" fill="${INK}">${label}</text>`;
+
+      // Arrow 1: Agent → MCP (tool call)
+      const callY = y + 33;
+      s += _seqArrow(ax[0], ax[1], callY, INK, false);
+      s += `<text x="${(ax[0]+ax[1])/2}" y="${callY - 6}" text-anchor="middle" ${MONO} font-size="9.5" fill="${INK}">${esc(step.call)}</text>`;
+
+      // Arrow 2: MCP → API (HTTP request)
+      const httpY = y + 57;
+      s += _seqArrow(ax[1], ax[2], httpY, PURPLE, false);
+      s += `<text x="${(ax[1]+ax[2])/2}" y="${httpY - 6}" text-anchor="middle" ${MONO} font-size="9.5" fill="${PURPLE}">${esc(step.http)}</text>`;
+
+      // Return arrow: API → MCP (dashed response)
+      const retY = y + 76;
+      s += _seqRetArrow(ax[2], ax[1], retY, FAINT);
+      s += `<text x="${(ax[1]+ax[2])/2}" y="${retY - 4}" text-anchor="middle" ${MONO} font-size="8.5" fill="${FAINT}">${esc(step.ret)}</text>`;
+
+      // Captures annotation
+      if (step.captures) {
+        s += `<text x="${ax[1]}" y="${retY + 14}" text-anchor="middle" ${SANS} font-size="9" font-style="italic" fill="${GREEN}">captures ${esc(step.captures)}</text>`;
+      }
+
+      // Step separator
+      if (i < meta.steps.length - 1) {
+        const sepY = y + stepH - 4;
+        s += `<line x1="0" y1="${sepY}" x2="${W}" y2="${sepY}" stroke="${BORDER}" stroke-width="1"/>`;
+      }
+    });
+
+    return s + '</svg>';
+  }
 
   function summarizeResponse(toolName, data) {
     try {
