@@ -2700,12 +2700,17 @@
     const container = document.getElementById('s5-platform-toggle');
     if (!container) return;
     container.innerHTML = Object.entries(PLATFORMS).map(([key]) => {
+      const fetched = platformFetchCount(key) > 0;
       const sel = key === screen5Platform ? ' selected' : '';
+      if (!fetched) {
+        return `<button class="toggle-btn" disabled title="Fetch this platform's spec in Step 1 to browse its scenarios">${platformLabel(key)}</button>`;
+      }
       return `<button class="toggle-btn${sel}" onclick="switchScreen5Platform('${key}')">${platformLabel(key)}</button>`;
     }).join('');
   }
 
   function switchScreen5Platform(platform) {
+    if (platformFetchCount(platform) === 0) return;
     screen5Platform = platform;
     screen5ScenarioIndex = 0;
     renderScreen5PlatformToggle();
