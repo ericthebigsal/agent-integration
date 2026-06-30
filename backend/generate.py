@@ -489,6 +489,28 @@ TOOL_LIBRARY: dict[str, list[dict]] = {
 }
 
 
+# ── Combined "all" entries ─────────────────────────────────────────────────────
+# Built after TOOL_LIBRARY is fully populated; merges all per-scenario tools for
+# each platform, deduplicating by name and preserving order.
+
+def _make_all_entry(platform: str) -> dict:
+    seen: set[str] = set()
+    combined: list[dict] = []
+    i = 0
+    while f"{platform}-{i}" in TOOL_LIBRARY:
+        for t in TOOL_LIBRARY[f"{platform}-{i}"]["tools"]:
+            if t["name"] not in seen:
+                seen.add(t["name"])
+                combined.append(t)
+        i += 1
+    base = TOOL_LIBRARY[f"{platform}-0"]
+    return {**base, "scenario_name": "Full Integration Suite", "tools": combined}
+
+
+TOOL_LIBRARY["klaviyo-all"] = _make_all_entry("klaviyo")
+TOOL_LIBRARY["hubspot-all"] = _make_all_entry("hubspot")
+
+
 # ── Code generator ─────────────────────────────────────────────────────────────
 
 def _render_param_sig(params: list[dict]) -> str:
@@ -514,16 +536,22 @@ def _get_enrichment(key: tuple | None) -> str:
     return ENRICHMENTS.get(key, "")
 
 
-def generate_mcp_server(platform: str, scenario_index: int) -> tuple[str, list[dict]]:
+def generate_mcp_server(platform: str, scenario_index: int | str) -> tuple[str, list[dict]]:
     """
     Generate a real Python MCP server for the given platform and scenario.
+
+    Pass scenario_index=-1 (or "all") to generate a server with every tool for
+    the platform combined into one file.
 
     Returns:
         (python_code, tool_meta_list)
 
     tool_meta_list entries: {name, label, method, path, enriched, short_desc}
     """
-    key = f"{platform}-{scenario_index}"
+    if scenario_index in (-1, "all"):
+        key = f"{platform}-all"
+    else:
+        key = f"{platform}-{scenario_index}"
     if key not in TOOL_LIBRARY:
         raise KeyError(f"No tool spec for {key!r}. Available: {list(TOOL_LIBRARY)}")
 

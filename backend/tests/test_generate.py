@@ -7,33 +7,39 @@ from backend.generate import TOOL_LIBRARY, generate_mcp_server
 
 # ── Unit tests: generator ─────────────────────────────────────────────────────
 
+def _parse_key(key: str):
+    """Split a TOOL_LIBRARY key into (platform, scenario_arg) where arg is int or 'all'."""
+    platform, scenario = key.split("-", 1)
+    return platform, (scenario if scenario == "all" else int(scenario))
+
+
 @pytest.mark.parametrize("key", list(TOOL_LIBRARY.keys()))
 def test_generate_returns_code_and_meta(key):
-    platform, scenario = key.split("-", 1)
-    code, tools = generate_mcp_server(platform, int(scenario))
+    platform, scenario = _parse_key(key)
+    code, tools = generate_mcp_server(platform, scenario)
     assert isinstance(code, str) and len(code) > 100
     assert isinstance(tools, list) and len(tools) > 0
 
 
 @pytest.mark.parametrize("key", list(TOOL_LIBRARY.keys()))
 def test_generated_code_has_fastmcp_import(key):
-    platform, scenario = key.split("-", 1)
-    code, _ = generate_mcp_server(platform, int(scenario))
+    platform, scenario = _parse_key(key)
+    code, _ = generate_mcp_server(platform, scenario)
     assert "from mcp.server.fastmcp import FastMCP" in code
 
 
 @pytest.mark.parametrize("key", list(TOOL_LIBRARY.keys()))
 def test_generated_code_has_all_tool_functions(key):
-    platform, scenario = key.split("-", 1)
-    code, tools = generate_mcp_server(platform, int(scenario))
+    platform, scenario = _parse_key(key)
+    code, tools = generate_mcp_server(platform, scenario)
     for t in tools:
         assert f"async def {t['name']}(" in code, f"Missing function: {t['name']}"
 
 
 @pytest.mark.parametrize("key", list(TOOL_LIBRARY.keys()))
 def test_generated_code_has_mcp_tool_decorator(key):
-    platform, scenario = key.split("-", 1)
-    code, tools = generate_mcp_server(platform, int(scenario))
+    platform, scenario = _parse_key(key)
+    code, tools = generate_mcp_server(platform, scenario)
     assert code.count("@mcp.tool()") == len(tools)
 
 

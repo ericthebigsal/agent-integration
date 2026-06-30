@@ -33,9 +33,10 @@ class RunToolRequest(BaseModel):
 async def generate(req: GenerateRequest):
     """
     Generate a real Python MCP server for the given platform and scenario.
+    Pass scenario_index=-1 to generate all tools for the platform combined.
     Returns the generated code string, tool metadata, and generation stats.
     """
-    key = f"{req.platform}-{req.scenario_index}"
+    key = f"{req.platform}-all" if req.scenario_index == -1 else f"{req.platform}-{req.scenario_index}"
     if key not in TOOL_LIBRARY:
         raise HTTPException(status_code=400, detail=f"Unknown platform/scenario: {key!r}")
 

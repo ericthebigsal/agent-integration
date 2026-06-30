@@ -2485,7 +2485,7 @@
     selectedPlatform = platform;
     selectedScenarioIndex = 0;
     genDone = false;
-    screen1Fetched = isCached();
+    screen1Fetched = platformFetchCount(platform) > 0;
     document.getElementById('next-btn').disabled = !screen1Fetched;
     document.querySelectorAll('.platform-btn').forEach(b => b.classList.toggle('selected', b.dataset.platform === platform));
     renderScenarioButtons();
@@ -2508,7 +2508,7 @@
 
   function selectScenarioIndex(i) {
     selectedScenarioIndex = i;
-    screen1Fetched = isCached();
+    screen1Fetched = platformFetchCount(selectedPlatform) > 0;
     document.getElementById('next-btn').disabled = !screen1Fetched;
     document.querySelectorAll('#scenario-toggle .toggle-btn').forEach((b, idx) =>
       b.classList.toggle('selected', idx === i));
@@ -3093,6 +3093,33 @@
     el.style.display = text ? 'block' : 'none';
   }
 
+  // Silently fetch and cache a scenario's spec — no UI feedback, no state mutation.
+  // Called automatically after any successful primary fetch to warm all scenarios.
+  async function fetchScenarioSilent(platform, scenarioIdx) {
+    const cKey = `${platform}-${scenarioIdx}`;
+    if (specCache[cKey]) return;
+    const scenario = PLATFORMS[platform]?.scenarios[scenarioIdx];
+    if (!scenario?.specUrl) return;
+    try {
+      const res = await fetch(scenario.specUrl);
+      if (!res.ok) return;
+      let parsed;
+      try { parsed = JSON.parse(await res.text()); } catch (_) { return; }
+      if (!parsed?.paths) return;
+      const pathKeys = Object.keys(parsed.paths);
+      const title   = parsed.info?.title   || '';
+      const version = parsed.info?.version || '';
+      const server  = (parsed.servers?.[0]?.url || '').replace(/^https?:\/\//, '');
+      const rOps    = scenario.requiredOps || [];
+      const found   = rOps.filter(op => opExistsInSpec(op.method, op.path, parsed.paths)).length;
+      specCache[cKey] = {
+        paths: parsed.paths, title, version, server,
+        countText: `${found} confirmed · ${rOps.length - found} not in spec · ${pathKeys.length} total paths`,
+      };
+      updatePlatformIndicators();
+    } catch (_) {}
+  }
+
   async function fetchSpecLive() {
     const url = document.getElementById('spec-url').value.trim();
     const smallBtn = document.getElementById('fetch-btn');
@@ -3348,6 +3375,9 @@
           if (current === 1) document.getElementById('next-btn').disabled = false;
           updatePlatformIndicators();
           updateFetchButton();
+          // Warm the cache for all other scenarios on this platform in the background.
+          const _p = selectedPlatform, _si = selectedScenarioIndex;
+          PLATFORMS[_p].scenarios.forEach((_, idx) => { if (idx !== _si) fetchScenarioSilent(_p, idx); });
         } else {
           const endpoints = [];
           for (const path of pathKeys) {
@@ -3399,7 +3429,7 @@
       { text: `    --auth-header "${authHeader}"`, cls: 'dim' },
       { text: '', cls: '' },
       { text: `Loading spec... ${isKlaviyo ? '847' : '1243'} operations found`, cls: 'dim' },
-      { text: `Applying scope filter... ${opCount} operations selected`, cls: 'dim' },
+      { text: `Merging all scenarios... ${opCount} operations selected`, cls: 'dim' },
     ];
 
     let i = 0;
@@ -3419,7 +3449,7 @@
       const resp = await fetch(`${BACKEND_URL}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ platform: selectedPlatform, scenario_index: selectedScenarioIndex }),
+        body: JSON.stringify({ platform: selectedPlatform, scenario_index: -1 }),
       });
       if (!resp.ok) throw new Error(`/api/generate returned ${resp.status}`);
       const data = await resp.json();
