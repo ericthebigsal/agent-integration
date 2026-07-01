@@ -1515,6 +1515,68 @@
   }
   .seq-result-summary { color: var(--ink-muted); flex: 1; font-size: 12px; line-height: 1.5; }
   .seq-result-code { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-muted); margin-left: auto; white-space: nowrap; }
+
+  /* ── Expandable result detail ── */
+  .seq-result-wrapper { display: flex; flex-direction: column; }
+  .seq-result-item { cursor: pointer; transition: background 0.12s; }
+  .seq-result-item:hover { background: #f5f5f5; }
+  .seq-result-item.expanded { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: transparent; }
+  .seq-result-chevron { font-size: 9px; margin-left: 4px; color: var(--ink-faint); flex-shrink: 0; }
+  .seq-result-item.expanded .seq-result-chevron { color: var(--ink-muted); }
+  .seq-result-detail {
+    display: none;
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 6px 6px;
+    overflow: hidden;
+  }
+  .seq-result-detail.open { display: block; }
+  .seq-detail-section {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .seq-detail-section:last-child { border-bottom: none; }
+  .seq-detail-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .seq-detail-code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 8px 10px;
+    white-space: pre;
+    overflow-x: auto;
+    overflow-y: auto;
+    line-height: 1.55;
+    color: var(--ink);
+    max-height: 260px;
+  }
+  .seq-detail-explain {
+    font-size: 12.5px;
+    line-height: 1.7;
+    color: var(--ink-muted);
+  }
+  .seq-detail-explain strong { color: var(--ink); font-weight: 600; }
+  .seq-detail-explain code {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 4px;
+    color: var(--ink);
+  }
   .scenario-result-step { }
   .result-step-header {
     display: flex;
@@ -2888,6 +2950,7 @@
   let screen5Platform = 'klaviyo';
   let screen5ScenarioIndex = 0;
   let demoKey = '';
+  let resultStore = []; // persists request/response per step after each run
 
   function cacheKey() { return `${selectedPlatform}-${selectedScenarioIndex}`; }
   function isCached() { return !!specCache[cacheKey()]; }
@@ -4088,6 +4151,102 @@
 
   // ── Run scenario ──────────────────────────────────────────────────────────
 
+  function detailExplain(toolName, data, args) {
+    switch (toolName) {
+      case 'upsert_profile': {
+        const id = data?.data?.id;
+        return `Klaviyo returned the <strong>full profile object</strong>. The <code>id</code> field (<code>${esc(id || '—')}</code>) is a permanent CRM identifier — unlike email addresses, it never changes even if the customer updates their contact info. All downstream operations (list membership, segment targeting) reference this ID, not the email.`;
+      }
+      case 'list_profiles': {
+        const count = data?.data?.length ?? 0;
+        return `Klaviyo returned <strong>${count} profile${count !== 1 ? 's' : ''}</strong> from the first page. The <code>data</code> array contains full profile objects in the same shape as an <code>upsert_profile</code> response. Pagination is cursor-based — use the <code>next</code> URL from the <code>links</code> block to fetch subsequent pages. A newly created profile appears here almost immediately.`;
+      }
+      case 'create_list': {
+        const id = data?.data?.id;
+        return `Klaviyo created a new <strong>static marketing list</strong> with ID <code>${esc(id || '—')}</code>. Membership must be managed explicitly — lists don't auto-update based on rules. For dynamic rule-based membership (e.g., "all customers with vip_tier = gold"), use Segments instead of Lists.`;
+      }
+      case 'add_list_member': {
+        return `HTTP <strong>204 No Content</strong> is the success response — Klaviyo returns no body. The profile was added <em>directly</em> to the list, bypassing consent flow. This is the <code>relationships/profiles</code> path; it doesn't trigger double opt-in. If you need consent-aware enrollment (required for GDPR and email marketing), use the <code>profile-subscription-bulk-create-jobs</code> endpoint instead.`;
+      }
+      case 'create_segment': {
+        const id = data?.data?.id;
+        return `Segment <code>${esc(id || '—')}</code> was created. Klaviyo will begin <strong>computing membership</strong> asynchronously — you cannot add profiles manually. The segment engine continuously evaluates all profiles against the definition and updates membership as profile attributes change. A freshly created segment may show 0 members until the first evaluation pass completes (typically 10–60 seconds for small accounts).`;
+      }
+      case 'batch_upsert_contacts': {
+        const id = data?.results?.[0]?.id;
+        return `HubSpot performed a <strong>batch upsert</strong>: if a contact with the same email already exists it updates the record; otherwise it creates a new one. The <code>results</code> array contains the final contact objects with their permanent HubSpot <code>id</code> (<code>${esc(id || '—')}</code>). Store this ID — list enrollment and association operations reference it, not the email.`;
+      }
+      case 'list_contacts': {
+        const count = data?.results?.length ?? 0;
+        return `HubSpot returned <strong>${count} contact${count !== 1 ? 's' : ''}</strong> from this page. By default HubSpot returns only a handful of core properties. Pass a <code>properties</code> array in the request to get specific fields — e.g., <code>["email","firstname","company"]</code>. The <code>paging</code> block at the end contains a <code>next.after</code> cursor for fetching the next page.`;
+      }
+      case 'create_list': {
+        const id = data?.listId || data?.list?.listId || data?.id;
+        return `HubSpot created a <strong>static list</strong> with ID <code>${esc(id || '—')}</code>. Contacts must be enrolled explicitly — static lists don't auto-update. If you want a list that automatically includes all contacts matching a filter (e.g., "all contacts from Acme Corp"), you'd create an <em>Active List</em> instead by providing filter rules in the create payload.`;
+      }
+      case 'add_list_members': {
+        return `The contacts were <strong>enrolled in the static list</strong>. HubSpot returns HTTP 200 with counts of added records. If any contact was already on the list, HubSpot silently skips it — no error. The <code>recordIdsAdded</code> field confirms exactly which IDs were processed.`;
+      }
+      case 'batch_read_associations': {
+        const total = (data?.results || []).reduce((a, r) => a + (r.to?.length ?? 0), 0);
+        return `HubSpot returned the association graph for the queried contacts — <strong>${total} association${total !== 1 ? 's' : ''} found</strong>. Each result maps a <code>from</code> contact ID to an array of <code>to</code> object IDs with their association type. This is how HubSpot's CRM graph encodes relationships like "this contact works at this company." A contact with no company associations returns an empty <code>to</code> array, not an error.`;
+      }
+      default:
+        return '';
+    }
+  }
+
+  function toggleResultExpand(i) {
+    const item = document.getElementById(`seq-result-item-${i}`);
+    const detail = document.getElementById(`seq-result-detail-${i}`);
+    if (!item || !detail) return;
+
+    const opening = !item.classList.contains('expanded');
+
+    // Render content lazily on first open
+    if (opening && !detail.dataset.rendered) {
+      const store = resultStore[i];
+      if (!store) return;
+
+      const { tool, args, status, response, endpoint } = store;
+      const baseUrl = 'https://' + (PLATFORMS[screen5Platform]?.specPreview?.server || '');
+      const [method, ...pathParts] = (endpoint || '').split(' ');
+      const path = pathParts.join(' ');
+      const fullUrl = baseUrl + path;
+
+      // Headers by platform
+      const headers = screen5Platform === 'klaviyo'
+        ? `Authorization: Klaviyo-API-Key ••••••••\nContent-Type: application/vnd.api+json\nrevision: 2024-10-15`
+        : `Authorization: Bearer ••••••••\nContent-Type: application/json`;
+
+      const argsStr = JSON.stringify(args, null, 2);
+      const reqStr = `${method} ${fullUrl}\n${headers}\n\n${argsStr}`;
+
+      const respStr = JSON.stringify(response, null, 2);
+      const respDisplay = respStr.length > 3000 ? respStr.slice(0, 3000) + '\n\n… (truncated)' : respStr;
+
+      const explain = detailExplain(tool, response, args);
+
+      detail.innerHTML =
+        `<div class="seq-detail-section">`
+        + `<div class="seq-detail-label">Request<span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--ink-faint)">&nbsp;${esc(method)} ${esc(fullUrl)}</span></div>`
+        + `<div class="seq-detail-code">${esc(reqStr)}</div>`
+        + `</div>`
+        + `<div class="seq-detail-section">`
+        + `<div class="seq-detail-label">Response<span style="margin-left:4px;font-weight:600;color:#059669;font-size:10.5px">${esc(String(status))} OK</span></div>`
+        + `<div class="seq-detail-code">${esc(respDisplay)}</div>`
+        + `</div>`
+        + (explain ? `<div class="seq-detail-section"><div class="seq-detail-label">What this means</div><div class="seq-detail-explain">${explain}</div></div>` : '');
+
+      detail.dataset.rendered = '1';
+    }
+
+    item.classList.toggle('expanded', opening);
+    detail.classList.toggle('open', opening);
+    const chevron = item.querySelector('.seq-result-chevron');
+    if (chevron) chevron.textContent = opening ? '▲' : '▼';
+  }
+
   async function runScenario() {
     const key = `${screen5Platform}-${screen5ScenarioIndex}`;
     const scenario = SCENARIOS[key];
@@ -4100,6 +4259,7 @@
     btn.disabled = true;
     btn.textContent = '…';
     resultsEl.innerHTML = '';
+    resultStore = [];
 
     seqResetDiagram(scenario.steps.length);
 
@@ -4115,15 +4275,28 @@
       const capEl = document.getElementById(`seq-captures-${i}`);
       if (capEl && !capEl.dataset.orig) capEl.dataset.orig = capEl.textContent;
 
-      // Compact result row (loading state)
+      // Wrapper contains the compact row + lazy detail panel
+      const wrapper = document.createElement('div');
+      wrapper.className = 'seq-result-wrapper';
+
       const item = document.createElement('div');
       item.className = 'seq-result-item';
+      item.id = `seq-result-item-${i}`;
+      item.setAttribute('onclick', `toggleResultExpand(${i})`);
       item.innerHTML =
         `<span class="seq-result-icon" id="sri-icon-${i}" style="color:var(--ink-muted)">◌</span>`
         + `<span class="seq-result-fn">${step.tool}()</span>`
         + `<span class="seq-result-summary" id="sri-summary-${i}" style="color:var(--ink-faint)">calling…</span>`
-        + `<span class="seq-result-code" id="sri-code-${i}"></span>`;
-      resultsEl.appendChild(item);
+        + `<span class="seq-result-code" id="sri-code-${i}"></span>`
+        + `<span class="seq-result-chevron">▼</span>`;
+
+      const detail = document.createElement('div');
+      detail.className = 'seq-result-detail';
+      detail.id = `seq-result-detail-${i}`;
+
+      wrapper.appendChild(item);
+      wrapper.appendChild(detail);
+      resultsEl.appendChild(wrapper);
       item.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
       try {
@@ -4138,6 +4311,9 @@
 
         step.extract(data, ctx);
         seqCompleteStep(i, true);
+
+        // Save to resultStore for expandable detail
+        resultStore[i] = { tool: step.tool, args, status: resp.status, response: data, endpoint: step.endpoint };
 
         // Show actual captured value on the diagram
         if (step.captures && ctx[step.captures] && capEl) {
